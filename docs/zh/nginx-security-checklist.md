@@ -52,7 +52,6 @@ keywords: "nginx 安全检查清单, nginx 加固清单, nginx 安全审计, ngi
     ssl_prefer_server_ciphers off;
     ssl_session_timeout 1d;
     ssl_session_cache shared:SSL:10m;
-    ssl_session_tickets off;
     ```
 
 :white_check_mark: **Gixy 检查：** [`weak_ssl_tls`](checks/weak-ssl-tls.md)

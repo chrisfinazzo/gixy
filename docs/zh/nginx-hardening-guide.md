@@ -124,7 +124,8 @@ server {
 
 ```nginx
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
 
     # HSTS，max-age 为 1 年并包含子域
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
@@ -152,7 +153,8 @@ server {
 
 ```nginx
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
 
     # 防止点击劫持
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -528,7 +530,6 @@ http {
     large_client_header_buffers 4 16k;
 
     # SSL 设置
-    # SSL settings
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
