@@ -19,7 +19,8 @@ Copy this block into your server configuration for immediate protection:
 
 ```nginx
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name example.com;
 
     # === ESSENTIAL SECURITY HEADERS ===
@@ -424,7 +425,8 @@ http {
     # Use the include pattern for consistent application
 
     server {
-        listen 443 ssl http2;
+        listen 443 ssl;
+        http2 on;
         server_name example.com;
 
         # SSL Configuration
