@@ -34,7 +34,7 @@ Gixy detects a wide range of security issues across these categories:
 | 📋 **Header Security** | [HSTS Header][hsts_header] &#183; [Header Redefinition][add_header_redefinition] &#183; [Multiline Headers][add_header_multiline] &#183; [Content-Type via add_header][add_header_content_type] |
 | 🚦 **Access Control** | [Allow Without Deny][allow_without_deny] &#183; [Return Bypasses ACL][return_bypasses_allow_deny] &#183; [Valid Referers][valid_referers] &#183; [Status Page Exposed][status_page_exposed] |
 | 🌐 **DNS & Resolver** | [External Resolver][resolver_external] &#183; [Missing Resolver][missing_resolver] |
-| ⚙️ **Config & Performance** | [ReDoS][regex_redos] &#183; [Unanchored Regex][unanchored_regex] &#183; [Invalid Regex][invalid_regex] &#183; [If Is Evil][if_is_evil] &#183; [Try Files Evil][try_files_is_evil_too] &#183; [Default Server][default_server_flag] &#183; [Hash Default][hash_without_default] &#183; [Error Log Off][error_log_off] &#183; [Worker Limits][worker_rlimit_nofile_vs_connections] &#183; [Low Keepalive][low_keepalive_requests] |
+| ⚙️ **Config & Performance** | [ReDoS][regex_redos] &#183; [Regex Exact Match][regex_exact_match] &#183; [Unanchored Regex][unanchored_regex] &#183; [Invalid Regex][invalid_regex] &#183; [If Is Evil][if_is_evil] &#183; [Try Files Evil][try_files_is_evil_too] &#183; [Default Server][default_server_flag] &#183; [Hash Default][hash_without_default] &#183; [Error Log Off][error_log_off] &#183; [Worker Limits][worker_rlimit_nofile_vs_connections] &#183; [Low Keepalive][low_keepalive_requests] |
 
 [📖 **Full documentation →**](https://gixy.getpagespeed.com/plugins/) &#183; [🆕 Upcoming checks](https://github.com/dvershinin/gixy/issues?q=is%3Aissue+is%3Aopen+label%3A%22new+plugin%22)
 
@@ -60,6 +60,7 @@ Gixy detects a wide range of security issues across these categories:
 [resolver_external]: https://gixy.getpagespeed.com/plugins/resolver_external/
 [missing_resolver]: https://gixy.getpagespeed.com/plugins/missing_resolver/
 [regex_redos]: https://gixy.getpagespeed.com/plugins/regex_redos/
+[regex_exact_match]: https://gixy.getpagespeed.com/checks/regex-exact-match/
 [unanchored_regex]: https://gixy.getpagespeed.com/plugins/unanchored_regex/
 [invalid_regex]: https://gixy.getpagespeed.com/plugins/invalid_regex/
 [if_is_evil]: https://gixy.getpagespeed.com/plugins/if_is_evil/

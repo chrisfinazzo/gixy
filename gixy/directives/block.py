@@ -162,6 +162,20 @@ class LocationBlock(Block):
         regexp = Regexp(self.path, case_sensitive=self.modifier == "~")
         return regexp.needs_tail_anchor()
 
+    def exact_match_path(self):
+        """Return the equivalent exact-match path if this regex location can be simplified.
+
+        Only applies to case-sensitive regex locations (~), since exact-match
+        locations (=) are always case-sensitive.
+
+        Returns:
+            str: The literal path for an exact-match location, or None if not convertible.
+        """
+        if not self.is_regex or self.modifier != "~":
+            return None
+        regexp = Regexp(self.path, case_sensitive=True)
+        return regexp.exact_match_equivalent()
+
 
 class IfBlock(Block):
     nginx_name = "if"

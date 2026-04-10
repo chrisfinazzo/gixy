@@ -71,6 +71,7 @@ Gixy can find various NGINX configuration security issues, as well as NGINX conf
 
 ### Regex & Pattern Issues
 
+*   [Regex Can Be Exact Match](checks/regex-exact-match.md)
 *   [Unanchored Regex in Location](checks/unanchored-regex.md)
 *   [Invalid Regex Capture Groups](checks/invalid-regex.md)
 

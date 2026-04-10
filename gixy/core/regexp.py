@@ -1066,3 +1066,33 @@ class Regexp:
 
         extension_pattern = re.compile(r"\\\.[A-Za-z0-9]+$")
         return bool(extension_pattern.search(self.source))
+
+    def exact_match_equivalent(self):
+        """Return the literal path if this regex is equivalent to an exact match.
+
+        A regex like ^/some/path$ where all tokens between anchors are literals
+        can be replaced with an exact-match location for better performance.
+
+        Returns:
+            str: The literal path string, or None if not convertible.
+        """
+        childs = self.root.childs
+        if len(childs) < 3:  # need at least ^, one literal, $
+            return None
+
+        # First child must be ^ anchor
+        if not isinstance(childs[0], AtToken) or not childs[0].begin:
+            return None
+
+        # Last child must be $ anchor
+        if not isinstance(childs[-1], AtToken) or not childs[-1].end:
+            return None
+
+        # All middle children must be LiteralToken
+        chars = []
+        for token in childs[1:-1]:
+            if not isinstance(token, LiteralToken):
+                return None
+            chars.append(token.char)
+
+        return "".join(chars)
