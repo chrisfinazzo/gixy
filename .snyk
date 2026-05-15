@@ -1,0 +1,9 @@
+# Suppress Snyk scanning of build-only dependency files.
+# docs/requirements.txt builds the mkdocs site; requirements.dev.txt is
+# for pytest/twine/coverage tooling. Neither file ships to PyPI, Docker,
+# or RPM consumers, so vulnerabilities in their transitive deps have
+# no real-world exposure.
+exclude:
+  global:
+    - requirements.dev.txt
+    - docs/requirements.txt
