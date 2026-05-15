@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.42] - 2026-05-15
+
+### Added
+- **New check: `nginx_cves`**: Unified nginx CVE advisor. Pass `--nginx-version=X.Y.Z` to enable the check; every CVE whose affected range covers your installed version is reported with the upgrade target. CVEs that also have a config-trigger pattern enrich the report with the offending directives. Without `--nginx-version`, the check stays silent (gixy is config-static and has no view of the binary). First database entry: **CVE-2026-42945 ("NGINX Rift")** — heap overflow in `ngx_http_rewrite_module` triggered by an unnamed PCRE backreference + `?` in a `rewrite` replacement followed by another `rewrite`, `if`, or `set` in the same context. Affects nginx OSS `0.6.27`..`1.30.0`; mitigation: switch to named captures (`(?<name>...)` with `${name}`), or upgrade to 1.30.1 / 1.31.0 / Plus R32 P6 / R36 P4.
+
 ## [0.2.41] - 2026-04-11
 
 ### Added

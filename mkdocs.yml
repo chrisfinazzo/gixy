@@ -79,6 +79,7 @@ nav:
   - checks/unanchored-regex.md
   - checks/regex-redos.md
   - checks/invalid-regex.md
+  - checks/nginx-cves.md
   - checks/missing-resolver.md
   - checks/hsts-header.md
   - checks/weak-ssl-tls.md

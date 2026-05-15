@@ -66,6 +66,7 @@ venv3/
 .vscode/
 .claude/
 .mcp.json
+.playwright-mcp/
 
 # Cursor rules stored in private dotfiles
 .cursor/rules

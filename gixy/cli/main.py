@@ -312,6 +312,19 @@ def _get_cli_parser():
         help="Run in server mode (NDJSON over stdin/stdout)",
     )
 
+    parser.add_argument(
+        "--nginx-version",
+        dest="nginx_version",
+        type=str,
+        default=None,
+        metavar="X.Y.Z",
+        help=(
+            "Installed nginx Open Source version (e.g. 1.29.8). Enables "
+            "the nginx_cves check to report CVEs that affect this "
+            "version. Without this flag, nginx_cves stays silent."
+        ),
+    )
+
     group = parser.add_argument_group("check options")
     for plugin_cls in PluginsManager().plugins_classes:
         name = plugin_cls.__name__
@@ -411,6 +424,11 @@ def main():
         if args.vars_dirs
         else None,
     )
+
+    # Top-level --nginx-version aliases the auto-generated
+    # --nginx-cves-version (the dest argparse uses for the per-plugin form).
+    if args.nginx_version:
+        setattr(args, "nginx_cves:version", args.nginx_version)
 
     for plugin_cls in PluginsManager().plugins_classes:
         name = plugin_cls.__name__
