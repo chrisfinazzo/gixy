@@ -28,7 +28,7 @@ def _audit_string(config_text, caplog=None):
     if caplog is not None:
         caplog.set_level(logging.INFO, logger="gixy.core.variable")
     manager = Manager()
-    manager.audit("/tmp/inline.conf", io.StringIO(config_text), is_stdin=True)
+    manager.audit("inline.conf", io.StringIO(config_text), is_stdin=True)
     return manager
 
 
