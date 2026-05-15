@@ -42,8 +42,8 @@ class TestNestedQuantifiers:
         assert "Nested quantifier" in str(vulns[0])
 
     def test_nested_with_content(self):
-        """((a+)b)+ has nested quantifier."""
-        analyzer = RedosAnalyzer("((a+)b)+")
+        """((a+).)+ has nested quantifier — `.` cannot bound `a+`."""
+        analyzer = RedosAnalyzer("((a+).)+")
         vulns = analyzer.analyze()
         assert len(vulns) > 0
         assert "Nested quantifier" in str(vulns[0])
@@ -174,6 +174,48 @@ class TestSafePatterns:
         # We allow max>1 to be flagged, so this should be flagged
         assert len(vulns) > 0
 
+    def test_literal_boundary_inside_group(self):
+        """(a+b)+ is safe — literal `b` is disjoint from the inner `a+`."""
+        analyzer = RedosAnalyzer("(a+b)+")
+        vulns = analyzer.analyze()
+        assert len(vulns) == 0
+
+    def test_charclass_boundary_inside_group(self):
+        """([a-z]+/)+core is safe — `/` not in [a-z]."""
+        analyzer = RedosAnalyzer("([a-z]+/)+core")
+        vulns = analyzer.analyze()
+        assert len(vulns) == 0
+
+    def test_boundary_nested_subpattern(self):
+        r"""((sub)+\.)+example is safe — `\.` bounds the inner (sub)+."""
+        analyzer = RedosAnalyzer(r"((sub)+\.)+example")
+        vulns = analyzer.analyze()
+        assert len(vulns) == 0
+
+    def test_boundary_with_word_category(self):
+        r"""(\w+/)+end is safe — `/` not in \w."""
+        analyzer = RedosAnalyzer(r"(\w+/)+end")
+        vulns = analyzer.analyze()
+        assert len(vulns) == 0
+
+    def test_boundary_alternation_branches(self):
+        """Every branch has a disjoint literal terminator."""
+        analyzer = RedosAnalyzer("(foo[a-w]+x|bar[0-8]+9)+")
+        vulns = analyzer.analyze()
+        assert len(vulns) == 0
+
+    def test_real_world_issue99(self):
+        """Issue #99: cache-busting pattern with `+` outer must clear."""
+        analyzer = RedosAnalyzer("^/([_0-9a-zA-Z-]+/)+core/cache/busting/1/core/(.*)")
+        vulns = analyzer.analyze()
+        assert len(vulns) == 0
+
+    def test_nested_subpattern_boundary(self):
+        """((a+)b)+ is safe — `b` follows the inner SUBPATTERN containing a+."""
+        analyzer = RedosAnalyzer("((a+)b)+")
+        vulns = analyzer.analyze()
+        assert len(vulns) == 0
+
 
 class TestRealWorldVulnerablePatterns:
     """Test detection of real-world vulnerable patterns."""
@@ -191,8 +233,32 @@ class TestRealWorldVulnerablePatterns:
         assert len(vulns) > 0
 
     def test_url_path_vulnerable(self):
-        """^/((sub)+\\.)+example\\.com$ has nested quantifiers."""
-        analyzer = RedosAnalyzer(r"^/((sub)+\.)+example\.com$")
+        """^/((sub)+)+example\\.com$ - no literal boundary between iterations."""
+        analyzer = RedosAnalyzer(r"^/((sub)+)+example\.com$")
+        vulns = analyzer.analyze()
+        assert len(vulns) > 0
+
+    def test_outer_level_boundary_does_not_save(self):
+        """`b` is outside the outer `+`; iterations of outer + are still ambiguous."""
+        analyzer = RedosAnalyzer("(a+)+b")
+        vulns = analyzer.analyze()
+        assert len(vulns) > 0
+
+    def test_overlapping_inner_outer(self):
+        """Boundary `a` is in [a-z], so `([a-z]+a)+` is still vulnerable."""
+        analyzer = RedosAnalyzer("([a-z]+a)+")
+        vulns = analyzer.analyze()
+        assert len(vulns) > 0
+
+    def test_any_boundary_unsafe(self):
+        """`.` matches anything (including `a`); not a safe boundary for `a+`."""
+        analyzer = RedosAnalyzer("(a+.)+")
+        vulns = analyzer.analyze()
+        assert len(vulns) > 0
+
+    def test_alternation_overlapping_boundary(self):
+        """`x` is in `[a-z]`, so this alternation IS vulnerable."""
+        analyzer = RedosAnalyzer("(foo[a-z]+x|bar[0-9]+y)+")
         vulns = analyzer.analyze()
         assert len(vulns) > 0
 

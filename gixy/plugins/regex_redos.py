@@ -30,16 +30,29 @@ from gixy.core.sre_parse.sre_parse import (
     LITERAL,
     MAX_REPEAT,
     MIN_REPEAT,
+    NEGATE,
     NOT_LITERAL,
     RANGE,
     SUBPATTERN,
 )
+from gixy.core.sre_parse import sre_constants
 
 import gixy
 from gixy.plugins.plugin import Plugin
 
 # Quantifier opcodes
 QUANTIFIERS = (MAX_REPEAT, MIN_REPEAT)
+
+# Concrete character sets for the standard regex categories that we can enumerate
+# safely. CATEGORY_NOT_* and locale/unicode variants stay unknown — boundary
+# detection falls back to "conservative / keep flagging" for those.
+_CATEGORY_CHARS = {
+    sre_constants.CATEGORY_DIGIT: set("0123456789"),
+    sre_constants.CATEGORY_SPACE: set(" \t\n\r\f\v"),
+    sre_constants.CATEGORY_WORD: set(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+    ),
+}
 
 
 class RedosVulnerability:
@@ -111,98 +124,262 @@ class RedosAnalyzer:
 
         return self.vulnerabilities
 
-    def _check_nested_quantifiers(self, parsed, depth, in_quantifier):
-        """
-        Recursively check for nested quantifiers - causes EXPONENTIAL backtracking.
+    def _check_nested_quantifiers(self, parsed, depth, in_quantifier, tail=None):
+        """Recursively check for nested quantifiers (exponential backtracking).
 
-        Examples:
-        - (a+)+   → O(2^n) for input "aaa...b"
-        - (a*)+   → O(2^n)
-        - ((ab)+)+ → O(2^n)
+        An inner unbounded quantifier inside an outer unbounded quantifier is
+        safe when the chars that MUST be consumed immediately after it are
+        disjoint from the inner quantifier's own char set — the boundary
+        prevents ambiguous splits between iterations.
+
+        Args:
+            parsed: Parsed regex element list at the current scope.
+            depth: Current recursion depth (informational).
+            in_quantifier: True if we are inside the body of an unbounded
+                outer quantifier and any unbounded quantifier we find is a
+                potential nested-quantifier ReDoS.
+            tail: Chars that must be consumed immediately after the last
+                element of ``parsed``. ``None`` means unknown/unrestricted.
         """
-        for op, av in parsed:
+        for i, (op, av) in enumerate(parsed):
             if op in QUANTIFIERS:
                 min_repeat, max_repeat, subpattern = av
-
-                # Check if this quantifier can match MULTIPLE times (more than once)
-                # The ? quantifier (max=1) cannot cause exponential backtracking as
-                # the outer quantifier because it matches at most once.
-                # Only unbounded quantifiers (+, *, {n,m} where m>1) are dangerous.
                 can_repeat_multiple = (
                     max_repeat > 1 or max_repeat == sre_parse.MAXREPEAT
                 )
 
                 if can_repeat_multiple:
                     if in_quantifier:
-                        # Found nested quantifier!
-                        self.vulnerabilities.append(
-                            RedosVulnerability(
-                                RedosVulnerability.EXPONENTIAL,
-                                "Nested quantifier detected - causes exponential O(2^n) backtracking",
-                                attack_hint="repeat the matching char many times + non-matching char",
+                        boundary = self._next_or_inherited(parsed, i, tail)
+                        if not self._is_safe_boundary(subpattern, boundary):
+                            self.vulnerabilities.append(
+                                RedosVulnerability(
+                                    RedosVulnerability.EXPONENTIAL,
+                                    "Nested quantifier detected - causes exponential O(2^n) backtracking",
+                                    attack_hint="repeat the matching char many times + non-matching char",
+                                )
                             )
+                            return
+                        # Safe boundary on this inner quantifier — keep recursing
+                        # in case it itself contains a deeper unsafe nesting.
+                        body_tail = self._body_tail(subpattern, parsed, i, tail)
+                        self._check_nested_quantifiers(
+                            subpattern, depth + 1, in_quantifier=True, tail=body_tail
                         )
-                        return
-
-                    # Check if the subpattern itself contains quantifiers
-                    if self._contains_quantifier(subpattern):
-                        self.vulnerabilities.append(
-                            RedosVulnerability(
-                                RedosVulnerability.EXPONENTIAL,
-                                "Nested quantifier in group - causes exponential O(2^n) backtracking",
-                                attack_hint="repeat the matching char many times + non-matching char",
+                    else:
+                        body_tail = self._body_tail(subpattern, parsed, i, tail)
+                        if self._contains_quantifier(subpattern, tail=body_tail):
+                            self.vulnerabilities.append(
+                                RedosVulnerability(
+                                    RedosVulnerability.EXPONENTIAL,
+                                    "Nested quantifier in group - causes exponential O(2^n) backtracking",
+                                    attack_hint="repeat the matching char many times + non-matching char",
+                                )
                             )
+                            return
+                        self._check_nested_quantifiers(
+                            subpattern, depth + 1, in_quantifier=True, tail=body_tail
                         )
-                        return
-
-                    # Recurse into the subpattern
-                    self._check_nested_quantifiers(
-                        subpattern, depth + 1, in_quantifier=True
-                    )
                 else:
-                    # Bounded quantifiers like ? (max=1) or {1,2} don't propagate
-                    # the in_quantifier context since they can't cause exponential backtracking
                     self._check_nested_quantifiers(
-                        subpattern, depth + 1, in_quantifier=False
+                        subpattern, depth + 1, in_quantifier=in_quantifier, tail=tail
                     )
 
             elif op == SUBPATTERN:
                 _, subpattern = av
-                self._check_nested_quantifiers(subpattern, depth + 1, in_quantifier)
+                sub_tail = self._next_or_inherited(parsed, i, tail)
+                self._check_nested_quantifiers(
+                    subpattern, depth + 1, in_quantifier, tail=sub_tail
+                )
 
             elif op == BRANCH:
                 _, branches = av
+                sub_tail = self._next_or_inherited(parsed, i, tail)
                 for branch in branches:
-                    self._check_nested_quantifiers(branch, depth + 1, in_quantifier)
+                    self._check_nested_quantifiers(
+                        branch, depth + 1, in_quantifier, tail=sub_tail
+                    )
 
             elif op in (ASSERT, ASSERT_NOT):
                 _, subpattern = av
-                # Quantifiers in lookaheads can also be problematic
-                self._check_nested_quantifiers(subpattern, depth + 1, in_quantifier)
+                # Lookarounds do not consume input; do not propagate tail.
+                self._check_nested_quantifiers(
+                    subpattern, depth + 1, in_quantifier, tail=None
+                )
 
-    def _contains_quantifier(self, parsed):
-        """Check if parsed pattern contains any unbounded quantifiers (can match more than once)."""
-        for op, av in parsed:
+    def _contains_quantifier(self, parsed, tail=None):
+        """Check whether ``parsed`` contains an unbounded quantifier without a safe boundary.
+
+        Args:
+            parsed: Parsed regex element list to inspect.
+            tail: Chars that must be consumed immediately after the last
+                element of ``parsed``; used as the boundary for a quantifier
+                that sits at the end of ``parsed``.
+
+        Returns:
+            True if an unsafe unbounded quantifier is found.
+        """
+        for i, (op, av) in enumerate(parsed):
             if op in QUANTIFIERS:
-                min_repeat, max_repeat, _ = av
-                # Only unbounded quantifiers (+, *, {n,m} where m>1) count as dangerous
-                # The ? quantifier (max=1) is bounded and not dangerous for nesting
+                min_repeat, max_repeat, subpattern = av
                 if max_repeat > 1 or max_repeat == sre_parse.MAXREPEAT:
-                    return True
+                    boundary = self._next_or_inherited(parsed, i, tail)
+                    if not self._is_safe_boundary(subpattern, boundary):
+                        return True
             elif op == SUBPATTERN:
                 _, subpattern = av
-                if self._contains_quantifier(subpattern):
+                sub_tail = self._next_or_inherited(parsed, i, tail)
+                if self._contains_quantifier(subpattern, tail=sub_tail):
                     return True
             elif op == BRANCH:
                 _, branches = av
+                sub_tail = self._next_or_inherited(parsed, i, tail)
                 for branch in branches:
-                    if self._contains_quantifier(branch):
+                    if self._contains_quantifier(branch, tail=sub_tail):
                         return True
             elif op in (ASSERT, ASSERT_NOT):
                 _, subpattern = av
-                if self._contains_quantifier(subpattern):
+                if self._contains_quantifier(subpattern, tail=None):
                     return True
         return False
+
+    def _next_or_inherited(self, parsed, i, inherited_tail):
+        """Required first chars after ``parsed[i]``, falling back to ``inherited_tail``.
+
+        Args:
+            parsed: Parent element list.
+            i: Index of the element whose successor boundary is needed.
+            inherited_tail: Tail inherited from the enclosing scope.
+
+        Returns:
+            A set of chars, or None if undetermined.
+        """
+        after = self._required_first_chars(parsed[i + 1 :])
+        if after:
+            return after
+        return inherited_tail
+
+    def _body_tail(self, body, parent_parsed, i, inherited_tail):
+        """Boundary chars for the END of an unbounded quantifier's body.
+
+        Between iterations the engine restarts the body — so the chars that
+        bound an inner quantifier at end-of-body are the union of the body's
+        own first chars (next-iteration start) and whatever tail follows the
+        outer quantifier in its parent scope.
+        """
+        outer_tail = self._next_or_inherited(parent_parsed, i, inherited_tail)
+        body_first = self._required_first_chars(body)
+        if body_first is None:
+            return None
+        if not body_first:
+            return outer_tail
+        if outer_tail is None:
+            return body_first
+        return body_first | outer_tail
+
+    def _is_safe_boundary(self, quant_body, boundary):
+        """True if the quantifier body's chars are disjoint from ``boundary``.
+
+        Args:
+            quant_body: Subpattern of the quantifier (MAX_REPEAT/MIN_REPEAT body).
+            boundary: Required-first-chars set immediately following the
+                quantifier in its context, or None if undetermined.
+
+        Returns:
+            True if the boundary is concrete and provably disjoint from the
+            quantifier's first chars, False otherwise (conservative).
+        """
+        if not boundary:
+            return False
+        inner = self._required_first_chars(quant_body)
+        if not inner:
+            return False
+        return boundary.isdisjoint(inner)
+
+    def _required_first_chars(self, parsed):
+        """Chars that MUST be consumed when matching ``parsed`` starts.
+
+        Returns:
+            A set of chars (possibly empty when ``parsed`` is empty), or
+            ``None`` when the leading element can match a class we cannot
+            enumerate (ANY, NOT_LITERAL, negated/unknown CATEGORY, etc.).
+        """
+        if not parsed:
+            return set()
+        op, av = parsed[0]
+        if op == LITERAL:
+            return {chr(av)}
+        if op in (ANY, NOT_LITERAL):
+            return None
+        if op == IN:
+            return self._in_chars(av)
+        if op == AT:
+            return self._required_first_chars(parsed[1:])
+        if op == SUBPATTERN:
+            _, sub = av
+            sub_chars = self._required_first_chars(sub)
+            if sub_chars is None:
+                return None
+            if not sub_chars:
+                return self._required_first_chars(parsed[1:])
+            return sub_chars
+        if op == BRANCH:
+            _, branches = av
+            all_chars = set()
+            for branch in branches:
+                chars = self._required_first_chars(branch)
+                if chars is None:
+                    return None
+                if not chars:
+                    rest = self._required_first_chars(parsed[1:])
+                    if rest is None:
+                        return None
+                    return (all_chars | rest) if all_chars else rest
+                all_chars |= chars
+            return all_chars
+        if op in QUANTIFIERS:
+            min_repeat, _, sub = av
+            sub_chars = self._required_first_chars(sub)
+            if min_repeat == 0:
+                rest = self._required_first_chars(parsed[1:])
+                if sub_chars is None or rest is None:
+                    return None
+                return sub_chars | rest
+            if sub_chars is None:
+                return None
+            if not sub_chars:
+                return self._required_first_chars(parsed[1:])
+            return sub_chars
+        if op in (ASSERT, ASSERT_NOT):
+            return self._required_first_chars(parsed[1:])
+        return None
+
+    def _in_chars(self, members):
+        """Enumerate the chars matched by a parsed IN clause.
+
+        Args:
+            members: The IN clause's child list (LITERAL/RANGE/CATEGORY/NEGATE).
+
+        Returns:
+            A set of chars, or ``None`` when negated or containing an
+            un-enumerable CATEGORY (CATEGORY_NOT_*, locale/unicode variants).
+        """
+        chars = set()
+        for inner_op, inner_av in members:
+            if inner_op == NEGATE:
+                return None
+            if inner_op == LITERAL:
+                chars.add(chr(inner_av))
+            elif inner_op == RANGE:
+                chars |= {chr(c) for c in range(inner_av[0], inner_av[1] + 1)}
+            elif inner_op == CATEGORY:
+                cat_chars = _CATEGORY_CHARS.get(inner_av)
+                if cat_chars is None:
+                    return None
+                chars |= cat_chars
+            else:
+                return None
+        return chars or None
 
     def _check_overlapping_alternatives(self, parsed, in_quantifier=False):
         """
