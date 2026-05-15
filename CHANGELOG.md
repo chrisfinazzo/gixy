@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Variable scope tracking**: Recognize `set`-like directives (`set`, `auth_request_set`, `perl_set`, `set_by_lua`, `root`) across block scopes regardless of source order. Variables defined later in a `server {}` (or any parent) block are now visible to nested `location {}` blocks that reference them, matching nginx's parse-time variable registration. Eliminates false `Can't find variable` INFO logs ([#100](https://github.com/dvershinin/gixy/issues/100)).
+
 ## [0.2.42] - 2026-05-15
 
 ### Added

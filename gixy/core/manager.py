@@ -6,8 +6,22 @@ from gixy.core import builtin_variables as builtins
 from gixy.core.config import Config
 from gixy.core.context import get_context, pop_context, purge_context, push_context
 from gixy.core.plugins_manager import PluginsManager
-from gixy.directives.directive import MapDirective
+from gixy.directives.directive import (
+    AuthRequestSetDirective,
+    MapDirective,
+    PerlSetDirective,
+    RootDirective,
+    SetByLuaDirective,
+    SetDirective,
+)
 from gixy.parser.nginx_parser import NginxParser
+
+SCOPE_STATIC_SET_DIRECTIVES = (
+    SetDirective,
+    AuthRequestSetDirective,
+    PerlSetDirective,
+    SetByLuaDirective,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -63,6 +77,11 @@ class Manager:
         return stats
 
     def _audit_recursive(self, tree):
+        # Pre-populate scope-wide variables so nested blocks see `set`-like
+        # directives that appear later in source order. Matches nginx's
+        # parse-time variable registration (see issue #100).
+        self._prepopulate_scope_var_names(tree)
+        self._prepopulate_scope_var_values(tree)
         for directive in tree:
             self._update_variables(directive)
             self.auditor.audit(directive)
@@ -72,6 +91,49 @@ class Manager:
                 self._audit_recursive(directive.children)
                 if directive.self_context:
                     pop_context()
+
+    def _prepopulate_scope_var_names(self, tree):
+        """Register placeholder names for every set-like var in this scope.
+
+        Walks `tree` and any nested non-self_context blocks, adding a
+        ``builtins.fake_var(name)`` for each set-like directive's variable
+        name not yet present in the current context. Done before value
+        compilation (step B) so forward references within the same scope
+        resolve and do not log spurious "Can't find variable" INFO records.
+
+        Args:
+            tree: Iterable of sibling directives in the current scope.
+        """
+        context = get_context()
+        for directive in tree:
+            if isinstance(directive, SCOPE_STATIC_SET_DIRECTIVES):
+                name = directive.variable
+                if name not in context.variables["name"]:
+                    context.add_var(name, builtins.fake_var(name))
+            elif isinstance(directive, RootDirective):
+                if "document_root" not in context.variables["name"]:
+                    context.add_var("document_root", builtins.fake_var("document_root"))
+            elif directive.is_block and not directive.self_context:
+                self._prepopulate_scope_var_names(directive.children)
+
+    def _prepopulate_scope_var_values(self, tree):
+        """Replace placeholder names with real Variable objects.
+
+        Walks the same scope as :meth:`_prepopulate_scope_var_names` and
+        instantiates each set-like directive's full ``Variable`` (with value,
+        provider, and depends), overwriting the placeholder. Nested blocks
+        pushed during the main pass deepcopy these real Variables.
+
+        Args:
+            tree: Iterable of sibling directives in the current scope.
+        """
+        context = get_context()
+        for directive in tree:
+            if isinstance(directive, SCOPE_STATIC_SET_DIRECTIVES + (RootDirective,)):
+                for var in directive.variables:
+                    context.add_var(var.name, var)
+            elif directive.is_block and not directive.self_context:
+                self._prepopulate_scope_var_values(directive.children)
 
     def _update_variables(self, directive):
         # TODO(buglloc): finish him!
