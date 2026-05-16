@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **New check: `ssl_stapling_without_resolver`**: Flags SSL servers where `ssl_stapling on` is effective (either declared directly or inherited from `http`) but no `resolver` directive is reachable in scope. Without a resolver nginx cannot fetch the OCSP response and stapling silently fails — clients fall back to making their own OCSP queries, adding handshake latency and defeating the point of stapling. The check skips non-SSL servers, servers that override with `ssl_stapling off`, and any configuration where a `resolver` is visible in the server or an enclosing scope.
+
 ### Fixed
 - **Variable scope tracking**: Recognize `set`-like directives (`set`, `auth_request_set`, `perl_set`, `set_by_lua`, `root`) across block scopes regardless of source order. Variables defined later in a `server {}` (or any parent) block are now visible to nested `location {}` blocks that reference them, matching nginx's parse-time variable registration. Eliminates false `Can't find variable` INFO logs ([#100](https://github.com/dvershinin/gixy/issues/100)).
 

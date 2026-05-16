@@ -51,6 +51,7 @@ Gixy can find various NGINX configuration security issues, as well as NGINX conf
 
 *   [Weak SSL/TLS Configuration](checks/weak-ssl-tls.md)
 *   [HTTP/2 Misdirected Request Safeguard](checks/http2-misdirected-request.md)
+*   [OCSP Stapling Without Resolver](checks/ssl-stapling-without-resolver.md)
 
 ### Access Control & Validation
 
