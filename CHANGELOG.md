@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.43] - 2026-05-16
 
 ### Added
 - **New check: `ssl_stapling_without_resolver`**: Flags SSL servers where `ssl_stapling on` is effective (either declared directly or inherited from `http`) but no `resolver` directive is reachable in scope. Without a resolver nginx cannot fetch the OCSP response and stapling silently fails — clients fall back to making their own OCSP queries, adding handshake latency and defeating the point of stapling. The check skips non-SSL servers, servers that override with `ssl_stapling off`, and any configuration where a `resolver` is visible in the server or an enclosing scope.
