@@ -29,6 +29,10 @@ def get_plugins():
     skip = {"__init__.py", "plugin.py"}
     plugins = []
     for f in plugins_dir.glob("*.py"):
+        # Underscore-prefixed files are internal data/helper modules, not
+        # plugins (matches the PluginsManager.import_plugins convention).
+        if f.name.startswith("_"):
+            continue
         if f.name not in skip:
             plugins.append(f.stem)
     return sorted(plugins)

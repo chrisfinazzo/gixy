@@ -122,6 +122,10 @@ def main():
         # Skip __init__.py and base plugin.py
         if plugin_file.name in ("__init__.py", "plugin.py"):
             continue
+        # Underscore-prefixed modules are internal data/helper files,
+        # not plugins (matches PluginsManager.import_plugins).
+        if plugin_file.name.startswith("_"):
+            continue
 
         plugin_classes = get_plugin_classes(plugin_file)
 

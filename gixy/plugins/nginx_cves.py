@@ -1,111 +1,8 @@
 """Unified nginx CVE advisor: version-range + config-pattern checks."""
 
-import re
-
 import gixy
+from gixy.plugins._nginx_cves_db import CVES, in_any_range, parse_oss
 from gixy.plugins.plugin import Plugin
-
-
-def _parse_oss(version_str):
-    """Parse an nginx OSS version string like '1.29.8' to a tuple.
-
-    Args:
-        version_str: Version in 'X.Y.Z' form. Leading 'v' tolerated.
-
-    Returns:
-        Tuple of three ints, or None if the string isn't parseable.
-    """
-    if not version_str:
-        return None
-    cleaned = version_str.strip().lstrip("v")
-    parts = cleaned.split(".")
-    if len(parts) != 3:
-        return None
-    try:
-        return tuple(int(p) for p in parts)
-    except ValueError:
-        return None
-
-
-def _in_range(version, low, high):
-    """Check whether ``version`` falls within the inclusive [low, high] range.
-
-    Args:
-        version: Parsed version tuple.
-        low: Inclusive lower bound tuple.
-        high: Inclusive upper bound tuple.
-
-    Returns:
-        True iff low <= version <= high.
-    """
-    return low <= version <= high
-
-
-_UNNAMED_BACKREF = re.compile(r"\$(?:[1-9]|\{[1-9]\})")
-_SCRIPT_ENGINE_TRIGGERS = ("rewrite", "if", "set")
-
-
-def _check_cve_2026_42945(root):
-    """Find rewrite directives that trigger CVE-2026-42945 in the parsed tree.
-
-    The trigger is: a rewrite whose replacement contains both an unnamed
-    PCRE backreference ($1..$9 or ${1}..${9}) and a literal '?', followed
-    by another rewrite/if/set sibling in the same parent context.
-
-    Args:
-        root: Root Block of the parsed nginx config.
-
-    Yields:
-        (rewrite_directive, follow_up_sibling) tuples for each match.
-    """
-    for rewrite in root.find_recursive("rewrite"):
-        if len(rewrite.args) < 2:
-            continue
-        replace = rewrite.args[1]
-        if "?" not in replace:
-            continue
-        if not _UNNAMED_BACKREF.search(replace):
-            continue
-        parent = rewrite.parent
-        if parent is None or not parent.children:
-            continue
-        siblings = parent.children
-        idx = next((i for i, c in enumerate(siblings) if c is rewrite), None)
-        if idx is None:
-            continue
-        follow_up = next(
-            (c for c in siblings[idx + 1 :] if c.name in _SCRIPT_ENGINE_TRIGGERS),
-            None,
-        )
-        if follow_up is None:
-            continue
-        yield rewrite, follow_up
-
-
-# CVE database. Append future entries here; the plugin auto-walks this.
-#   id:           CVE identifier
-#   nickname:     short marketing name (or '')
-#   summary:      one-line issue description
-#   severity:     gixy severity constant
-#   advisory:     authoritative URL
-#   affected_oss: (low, high) inclusive version tuples; None if not OSS
-#   fixed_oss:    iterable of fixed OSS versions (string form, for messages)
-#   fixed_plus:   iterable of fixed Plus versions (string form, for messages)
-#   config_check: callable(root) yielding (primary, related) directive
-#                 pairs, or None if the CVE is binary-only
-_CVES = (
-    {
-        "id": "CVE-2026-42945",
-        "nickname": "NGINX Rift",
-        "summary": "Heap overflow in ngx_http_rewrite_module.",
-        "severity": gixy.severity.HIGH,
-        "advisory": "https://nvd.nist.gov/vuln/detail/CVE-2026-42945",
-        "affected_oss": ((0, 6, 27), (1, 30, 0)),
-        "fixed_oss": ("1.30.1", "1.31.0"),
-        "fixed_plus": ("R32 P6", "R36 P4"),
-        "config_check": _check_cve_2026_42945,
-    },
-)
 
 
 class nginx_cves(Plugin):
@@ -114,12 +11,15 @@ class nginx_cves(Plugin):
     Pass ``--nginx-version=1.29.8`` to enable the check. Every CVE whose
     affected range covers the supplied version is reported with the
     upgrade target. For CVEs that also have a config-pattern trigger
-    (e.g. CVE-2026-42945), the report enriches with the offending
-    directives.
+    (e.g. CVE-2026-42945, mp4-module CVEs, resolver CVEs, HTTP/2 and
+    HTTP/3 issues), the report attaches to the offending directives.
 
     Without ``--nginx-version``, the check stays silent: gixy is
     config-static and has no view of the binary, so there is nothing
     safe to assert.
+
+    The CVE database lives in
+    :mod:`gixy.plugins._nginx_cves_db`; append entries there.
     """
 
     summary = "Known nginx CVE affects your installed version."
@@ -138,6 +38,11 @@ class nginx_cves(Plugin):
         "version": "Installed nginx Open Source version (e.g. 1.29.8).",
     }
     supports_full_config = True
+    # Old binaries trigger several CVEs from a single config — the
+    # generic simply-test harness expects exactly one issue per fixture
+    # and would fail on those. ``tests/plugins/test_nginx_cves.py``
+    # exercises the plugin directly with per-fixture issue counts.
+    skip_test = True
 
     # Per-directive audit() is unused — all logic runs in post_audit().
     directives = []
@@ -146,10 +51,10 @@ class nginx_cves(Plugin):
         """Initialize and parse the user-supplied nginx version.
 
         Args:
-            config: gixy plugin Config; reads the 'version' key.
+            config: gixy plugin Config; reads the ``version`` key.
         """
         super().__init__(config)
-        self._oss_version = _parse_oss(self.config.get("version"))
+        self._oss_version = parse_oss(self.config.get("version"))
 
     def post_audit(self, root):
         """Walk the CVE database against the supplied version and config.
@@ -159,25 +64,30 @@ class nginx_cves(Plugin):
         """
         if self._oss_version is None:
             return
-        for cve in _CVES:
+        for cve in CVES:
             self._evaluate_cve(cve, root)
 
     def _evaluate_cve(self, cve, root):
         """Decide whether a single CVE applies and emit issues if so.
 
         Args:
-            cve: CVE record from the _CVES tuple.
+            cve: CVE record from the ``CVES`` tuple.
             root: Root Block of the parsed config.
         """
         affected_oss = cve["affected_oss"]
         if affected_oss is None:
             return
-        if not _in_range(self._oss_version, affected_oss[0], affected_oss[1]):
+        if not in_any_range(self._oss_version, affected_oss):
             return
 
-        pattern_matches = []
-        if cve["config_check"] is not None:
-            pattern_matches = list(cve["config_check"](root))
+        has_config_check = cve["config_check"] is not None
+        pattern_matches = list(cve["config_check"](root)) if has_config_check else []
+        # Gating: if a CVE has a config-pattern trigger, suppress when the
+        # trigger is absent — the binary may still be vulnerable, but no
+        # exploitable surface exists in this config. Pure binary-level
+        # CVEs (config_check=None) always fire on a version match.
+        if has_config_check and not pattern_matches:
+            return
 
         upgrade_targets = ", ".join(cve["fixed_oss"])
         if cve["fixed_plus"]:
@@ -186,7 +96,7 @@ class nginx_cves(Plugin):
         nickname = f' ("{cve["nickname"]}")' if cve["nickname"] else ""
         if pattern_matches:
             qualifier = (
-                "your installed version is vulnerable AND the trigger "
+                "your installed version is vulnerable and the trigger "
                 "pattern is present in this config"
             )
         else:
@@ -208,9 +118,9 @@ class nginx_cves(Plugin):
                 )
             return
 
-        # Version-only branch: attach to the first server block so the
-        # report renders something visible (Root / HttpBlock are skipped
-        # by formatter.skip_parents).
+        # Pure version-only branch: attach to the first server block so
+        # the report renders something visible (Root / HttpBlock are
+        # skipped by formatter.skip_parents).
         anchor = self._pick_anchor(root)
         if anchor is None:
             return
@@ -228,8 +138,8 @@ class nginx_cves(Plugin):
             root: Root Block of the parsed config.
 
         Returns:
-            A server block if one exists, otherwise the first non-http
-            child of root, otherwise None.
+            A server block if one exists, otherwise the first non-``http``
+            child of root, otherwise ``None``.
         """
         servers = root.find_recursive("server")
         if servers:
