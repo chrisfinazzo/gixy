@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.44] - 2026-05-17
 
 ### Fixed
 - **Builtin variable table refresh**: Recognize 13 nginx variables that were missing from `gixy/core/builtin_variables.py`, eliminating spurious `[variable] INFO Can't find variable …` log lines. Added: `$http3` (`ngx_http_v3_module`, [#110](https://github.com/dvershinin/gixy/issues/110)), `$proxy_protocol_addr` and `$realip_remote_addr` (previously their doc comments were present but the keys were missing), `$proxy_protocol_server_addr`, `$proxy_protocol_server_port`, `$proxy_protocol_tlv_*` (PROXY protocol v2), `$sent_trailer_*`, `$upstream_trailer_*`, `$connection_time`, `$request_port`, `$is_request_port`, `$limit_conn_status`, `$limit_req_status`. List derived by diffing every `ngx_(http|stream)_variable_t` array in nginx 1.29.5 source against the existing builtin table, excluding entries flagged `NGX_HTTP_VAR_NOHASH` (internal-only, unreachable from configs).
