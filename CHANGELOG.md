@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.45] - 2026-05-20
+
+### Fixed
+- **Named regex capture groups in `if` blocks**: `gixy` no longer logs a spurious `Can't find variable 'name'` INFO for configs like `if ($http_referer ~ "^https?://example\.com(?P<path>.*)") { set $x $path; }`. Server-scope prepopulate was descending into `IfBlock` to evaluate inner `set` directives before the if's regex capture groups had been registered; the block's own `provide_variables` are now registered before recursion ([#111](https://github.com/dvershinin/gixy/issues/111)).
+- **Crash on Python 3.11+ for regexes generating invalid DNS labels**: `gixy/plugins/origins.py` called `candidate_match.encode("idna")` without protection. Python ≥ 3.11 idna codec rejects strings with empty or over-long labels (e.g. a regex containing `\.\.` or a 64+ char run), aborting the entire audit with `UnicodeError: label empty or too long`. The call is now guarded; on failure the raw candidate is used and downstream `parse_url` decides ([#111](https://github.com/dvershinin/gixy/issues/111)).
+
 ## [0.2.44] - 2026-05-17
 
 ### Fixed
