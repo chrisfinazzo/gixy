@@ -133,6 +133,17 @@ class Manager:
                 for var in directive.variables:
                     context.add_var(var.name, var)
             elif directive.is_block and not directive.self_context:
+                # Register vars the block itself provides (e.g. IfBlock regex
+                # capture groups) before recursing, so nested set-like
+                # directives can resolve them during prepopulate instead of
+                # logging a spurious "Can't find variable" warning. Mirrors
+                # _update_variables; safe to re-run there because add_var
+                # overwrites with the same Variable.
+                if directive.provide_variables:
+                    for var in directive.variables:
+                        if var.name == 0:
+                            context.clear_index_vars()
+                        context.add_var(var.name, var)
                 self._prepopulate_scope_var_values(directive.children)
 
     def _update_variables(self, directive):

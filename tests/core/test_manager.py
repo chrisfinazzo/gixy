@@ -147,3 +147,41 @@ http {
 """
     _audit_string(config, caplog)
     assert _missing_var_records(caplog) == []
+
+
+def test_named_capture_group_in_if_resolves(caplog):
+    """Named regex capture in `if` must be visible to `set` inside the if.
+
+    Regression for issue #111: gixy logged "Can't find variable 'path'" for
+    the named group, because server-scope prepopulate descended into the
+    IfBlock and evaluated the inner `set` before the if's capture groups
+    were registered.
+    """
+    config = r"""
+http {
+    server {
+        server_name example.com;
+        if ($http_referer ~ "^https?://example\.com(?P<path>.*)") {
+            set $normalised_referrer $path;
+        }
+    }
+}
+"""
+    _audit_string(config, caplog)
+    assert _missing_var_records(caplog) == []
+
+
+def test_numbered_capture_group_in_if_resolves(caplog):
+    """Numbered backreference in `if` must also resolve cleanly (sanity check)."""
+    config = r"""
+http {
+    server {
+        server_name example.com;
+        if ($request_uri ~ "^/old/(.*)$") {
+            set $new_uri $1;
+        }
+    }
+}
+"""
+    _audit_string(config, caplog)
+    assert _missing_var_records(caplog) == []
