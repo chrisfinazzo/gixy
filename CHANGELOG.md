@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.46] - 2026-05-21
+
+### Fixed
+- **`origins` false positive on host regexes anchored with `($|/)`**: A regex like `^https?://example\.com($|/)(?P<path>.*)` was reported as matching the bypass `http://example.com$aaaaa.evil.com`, even though that string does not actually match — the `$` in `($|/)` is the end-of-string anchor, not a literal `$`. Root cause was in `gixy/core/regexp.py`: `AtToken.generate()` emitted the raw `^` / `$` characters, and when an end anchor lived inside an alternation whose group had sibling tokens (e.g. the trailing `(?P<path>.*)`), `_gen_combinator` happily produced candidates with `$` stranded mid-string. The `origins` plugin then mutated these impossible-match candidates into bogus bypass URLs. Switched anchors to sentinel characters during generation; candidates with interior anchors are dropped at the top-level yielder before any plugin sees them. Semantically-equivalent regex rewrites now produce identical candidate sets ([#111](https://github.com/dvershinin/gixy/issues/111)).
+
 ## [0.2.45] - 2026-05-20
 
 ### Fixed
