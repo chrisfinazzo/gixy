@@ -165,7 +165,23 @@ def test_no_version_silences_plugin():
 
 
 def test_patched_modern_version_silent():
-    assert _cves_fired("1.31.0", _PLAIN) == set()
+    assert _cves_fired("1.31.1", _PLAIN) == set()
+
+
+def test_cve_2026_9256_fires_on_vulnerable_modern_binary():
+    assert "CVE-2026-9256" in _cves_fired("1.31.0", _PLAIN)
+
+
+def test_cve_2026_9256_silent_on_mainline_fix():
+    assert "CVE-2026-9256" not in _cves_fired("1.31.1", _PLAIN)
+
+
+def test_cve_2026_9256_silent_on_stable_branch_fix():
+    assert "CVE-2026-9256" not in _cves_fired("1.30.2", _PLAIN)
+
+
+def test_cve_2026_9256_silent_on_pre_vulnerable_versions():
+    assert "CVE-2026-9256" not in _cves_fired("0.1.16", _PLAIN)
 
 
 def test_pure_version_only_fires_on_ancient_binary():

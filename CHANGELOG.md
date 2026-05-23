@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.47] - 2026-05-23
+
+### Added
+- **`nginx_cves`**: New entry **CVE-2026-9256** — heap memory buffer overflow in `ngx_http_rewrite_module` triggered by a configuration with overlapping captures, potentially resulting in arbitrary code execution in a worker process. Affects nginx OSS `0.1.17`..`1.31.0`. Mitigation: upgrade to **1.31.1** (mainline) or **1.30.2** (stable). The check fires purely on `--nginx-version=` match — `--nginx-version=1.31.0` (previously considered patched) now reports this CVE. Advisory: <https://nvd.nist.gov/vuln/detail/CVE-2026-9256>, nginx CHANGES-1.30: <https://nginx.org/en/CHANGES-1.30>. Credit: Mufeed VH of Winfunc Research.
+
 ## [0.2.46] - 2026-05-21
 
 ### Fixed

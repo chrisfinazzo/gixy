@@ -631,6 +631,17 @@ def _advisory(cve_id):
 
 CVES = (
     {
+        "id": "CVE-2026-9256",
+        "nickname": "",
+        "summary": "Heap overflow in ngx_http_rewrite_module triggered by overlapping captures.",
+        "severity": gixy.severity.HIGH,
+        "advisory": _advisory("CVE-2026-9256"),
+        "vulnerable_oss": (((0, 1, 17), (1, 31, 0)),),
+        "fixed_oss": ("1.30.2", "1.31.1"),
+        "fixed_plus": (),
+        "config_check": None,
+    },
+    {
         "id": "CVE-2026-42945",
         "nickname": "NGINX Rift",
         "summary": "Heap overflow in ngx_http_rewrite_module.",
