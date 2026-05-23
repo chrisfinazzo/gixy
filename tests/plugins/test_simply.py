@@ -19,11 +19,6 @@ def generate_config_test_cases():
     config_cases = []
     config_fp_cases = []
 
-    manager = PluginsManager()
-    skip_plugins = {
-        plugin.name for plugin in manager.plugins if getattr(plugin, "skip_test", False)
-    }
-
     conf_dir = path.join(path.dirname(__file__), "simply")
     for plugin in os.listdir(conf_dir):
         if plugin in (".", ".."):
@@ -31,13 +26,6 @@ def generate_config_test_cases():
 
         plugin_path = path.join(conf_dir, plugin)
         if not path.isdir(plugin_path):
-            continue
-
-        # Plugins that opt out of the simply harness (e.g. nginx_cves,
-        # whose binary-version CVEs naturally fire multiple issues from
-        # a single config and break the "exactly one issue" assertion)
-        # keep their fixtures as example configs but are not run here.
-        if plugin in skip_plugins:
             continue
 
         config = {}
@@ -58,6 +46,7 @@ def generate_config_test_cases():
                 tested_fp_plugins.add(plugin)
                 config_fp_cases.append((plugin, config_path, config))
 
+    manager = PluginsManager()
     for plugin in manager.plugins:
         if getattr(plugin, "skip_test", False):
             continue

@@ -393,6 +393,97 @@ http { server { listen 80; } }
     assert "CVE-2025-53859" in fired
 
 
+def test_rewrite_rift_fires_with_rewrite_followup():
+    conf = """events {}
+http {
+    server {
+        listen 80;
+        location / {
+            rewrite ^/(.*)$ /x?$1 last;
+            rewrite ^/y /z last;
+        }
+    }
+}
+"""
+    assert "CVE-2026-42945" in _cves_fired("1.29.8", conf)
+
+
+def test_rewrite_rift_fires_with_set_followup():
+    conf = """events {}
+http {
+    server {
+        listen 80;
+        location / {
+            rewrite ^/(.*)$ /x?$1 last;
+            set $foo bar;
+        }
+    }
+}
+"""
+    assert "CVE-2026-42945" in _cves_fired("1.29.8", conf)
+
+
+def test_rewrite_rift_fires_with_if_followup():
+    conf = """events {}
+http {
+    server {
+        listen 80;
+        location / {
+            rewrite ^/(.*)$ /x?$1 last;
+            if ($args ~ "q=") {
+                return 200 "match";
+            }
+        }
+    }
+}
+"""
+    assert "CVE-2026-42945" in _cves_fired("1.29.8", conf)
+
+
+def test_rewrite_rift_fires_with_braced_backref():
+    conf = """events {}
+http {
+    server {
+        listen 80;
+        location / {
+            rewrite ^/(.*)$ /x?${1} last;
+            set $foo bar;
+        }
+    }
+}
+"""
+    assert "CVE-2026-42945" in _cves_fired("1.29.8", conf)
+
+
+def test_rewrite_rift_silent_without_followup():
+    conf = """events {}
+http {
+    server {
+        listen 80;
+        location / {
+            rewrite ^/(.*)$ /x?$1 last;
+        }
+    }
+}
+"""
+    assert "CVE-2026-42945" not in _cves_fired("1.29.8", conf)
+
+
+def test_rewrite_rift_silent_without_query_marker():
+    conf = """events {}
+http {
+    server {
+        listen 80;
+        location / {
+            rewrite ^/(.*)$ /x/$1 last;
+            set $foo bar;
+        }
+    }
+}
+"""
+    assert "CVE-2026-42945" not in _cves_fired("1.29.8", conf)
+
+
 def test_anchor_picks_first_server_for_version_only():
     """Pure version-only CVEs must produce a visible issue location."""
     issues = _run_plugin("0.7.50", _PLAIN)
