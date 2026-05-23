@@ -64,12 +64,34 @@ def generate_config_test_cases():
 all_config_cases, all_config_fp_cases = generate_config_test_cases()
 
 
-def parse_plugin_options(config_path):
+def _read_header_directive(config_path, prefix):
+    """Read a `# <prefix>: {...}` JSON directive from the first few lines.
+
+    Scans the leading non-blank lines so `# Options:` and `# Expected:`
+    can appear in any order at the top of a fixture.
+    """
     with open(config_path) as f:
-        config_line = f.readline()
-        if config_line.startswith("# Options: "):
-            return json.loads(config_line[10:])
+        for _ in range(3):
+            line = f.readline()
+            if not line:
+                break
+            if line.startswith(prefix):
+                return json.loads(line[len(prefix) :])
     return None
+
+
+def parse_plugin_options(config_path):
+    return _read_header_directive(config_path, "# Options: ")
+
+
+def parse_expected_directive(config_path):
+    """Read the optional `# Expected: {...}` header from a fixture.
+
+    Currently supports the ``issues`` key (int) — overrides the default
+    "exactly one issue per non-FP fixture" assertion. Returns an empty
+    dict when absent so callers can use ``.get("issues", 1)``.
+    """
+    return _read_header_directive(config_path, "# Expected: ") or {}
 
 
 def yoda_provider(plugin, plugin_options=None):
@@ -90,13 +112,17 @@ def yoda_provider(plugin, plugin_options=None):
 @pytest.mark.parametrize("plugin,config_path,test_config", all_config_cases)
 def test_configuration(plugin, config_path, test_config):
     plugin_options = parse_plugin_options(config_path)
+    expected = parse_expected_directive(config_path)
+    expected_count = expected.get("issues", 1)
     with yoda_provider(plugin, plugin_options) as yoda:
         yoda.audit(config_path, open(config_path))
         formatter = BaseFormatter()
         formatter.feed(config_path, yoda)
         _, results = formatter.reports.popitem()
 
-        assert len(results) == 1, "Should have one report"
+        assert (
+            len(results) == expected_count
+        ), f"Expected {expected_count} report(s), got {len(results)}"
         result = results[0]
 
         if "severity" in test_config:

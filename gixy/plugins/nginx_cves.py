@@ -38,11 +38,6 @@ class nginx_cves(Plugin):
         "version": "Installed nginx Open Source version (e.g. 1.29.8).",
     }
     supports_full_config = True
-    # Old binaries trigger several CVEs from a single config — the
-    # generic simply-test harness expects exactly one issue per fixture
-    # and would fail on those. ``tests/plugins/test_nginx_cves.py``
-    # exercises the plugin directly with per-fixture issue counts.
-    skip_test = True
 
     # Per-directive audit() is unused — all logic runs in post_audit().
     directives = []
