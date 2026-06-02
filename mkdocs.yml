@@ -56,6 +56,7 @@ nav:
 - Configuration & Usage Guide: configuration.md
 - Custom Variables & Drop-ins: variables-dropins.md
 - CI/CD Integration: ci-cd-integration.md
+- Continuous Monitoring: continuous-monitoring.md
 - IDE Integration: ide-integration.md
 - Security Checks:
   - checks/ssrf.md
@@ -84,10 +85,14 @@ nav:
   - checks/hsts-header.md
   - checks/weak-ssl-tls.md
   - checks/http2-misdirected-request.md
+  - checks/ssl-stapling-without-resolver.md
+  - checks/status-page-exposed.md
+  - checks/quic-bpf-reuseport.md
 - Performance Checks:
   - checks/try-files-is-evil-too.md
   - checks/worker-rlimit-nofile-vs-connections.md
   - checks/low-keepalive-requests.md
+  - checks/regex-exact-match.md
 - NGINX Extras RPMs: https://nginx-extras.getpagespeed.com/
 - Blog: https://www.getpagespeed.com/posts
 markdown_extensions:

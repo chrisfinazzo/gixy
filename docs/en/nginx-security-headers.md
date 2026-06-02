@@ -557,6 +557,7 @@ server {
 
 - [Complete NGINX Hardening Guide](nginx-hardening-guide.md)
 - [NGINX Security Checklist](nginx-security-checklist.md)
+- [Continuous Monitoring with GetPageSpeed Amplify](continuous-monitoring.md) - run these header checks continuously across every host.
 - [Mozilla Web Security Guidelines](https://infosec.mozilla.org/guidelines/web_security)
 - [OWASP Secure Headers Project](https://owasp.org/www-project-secure-headers/)
 

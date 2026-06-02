@@ -190,6 +190,10 @@ Total issues:
 
 ```
 
+## Continuous Monitoring
+
+Once Gixy is part of your CI pipeline, the next gap is production drift. Pair it with [GetPageSpeed Amplify](continuous-monitoring.md) for scheduled Gixy scans across every NGINX host plus runtime metrics and alerts. Amplify is drop-in compatible with the deprecated `nginx-amplify-agent`.
+
 ## Contributing
 
 Contributions to Gixy are always welcome! You can help us in different ways:

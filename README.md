@@ -303,6 +303,15 @@ Total issues:
 
 ```
 
+# Continuous Monitoring
+
+Pair Gixy with **GetPageSpeed Amplify** for continuous, scheduled Gixy scans plus full NGINX monitoring. Amplify is drop-in compatible with the deprecated `nginx-amplify-agent`, so existing hosts can be migrated with an `api_url` swap.
+
+* Scheduled Gixy security scans across every monitored host, surfaced in one dashboard.
+* NGINX runtime metrics, alerts, and historical trends alongside the Gixy report.
+
+Migration guide and screenshots: <https://gixy.org/guides/nginx-monitoring-amplify>.
+
 # Contributing
 Contributions to Gixy are always welcome! You can help us in different ways:
   * Open an issue with suggestions for improvements and errors you're facing;
