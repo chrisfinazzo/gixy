@@ -93,7 +93,7 @@ yum -y install https://extras.getpagespeed.com/release-latest.rpm
 yum -y install gixy
 ```
 
-### Other Systems (pip)
+### Other Systems (pip, Homebrew)
 
 Gixy is distributed on [PyPI](https://pypi.python.org/pypi/gixy-ng). The best way to install it is with pip:
 
@@ -105,6 +105,12 @@ Run Gixy and check results:
 
 ```bash
 gixy
+```
+
+If you use [Homebrew](https://brew.sh), you can install Gixy as follows:
+
+```bash
+brew install gixy
 ```
 
 ## Usage
