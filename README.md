@@ -82,7 +82,16 @@ Gixy detects a wide range of security issues across these categories:
 yum -y install https://extras.getpagespeed.com/release-latest.rpm
 yum -y install gixy
 ```
-### Other systems
+
+## macOS / Linux (Homebrew)
+
+```bash
+brew install gixy
+```
+
+Bottles are pre-built for macOS (Apple Silicon + Intel) and Linux (`x86_64`, `arm64`).
+
+## Other systems
 
 Gixy is distributed on [PyPI](https://pypi.python.org/pypi/gixy-ng). The best way to install it is with pip:
 
