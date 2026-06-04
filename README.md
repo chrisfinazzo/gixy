@@ -91,6 +91,17 @@ brew install gixy
 
 Bottles are pre-built for macOS (Apple Silicon + Intel) and Linux (`x86_64`, `arm64`).
 
+## Arch Linux (AUR)
+
+```bash
+yay -S gixy-ng
+```
+
+Published as `gixy-ng` (the legacy `gixy` AUR slot is held by a different
+maintainer at the old 0.1.20 release); it declares `provides=('gixy')` and
+`conflicts=('gixy')`, so it's a drop-in replacement. Any AUR helper works
+(`paru`, `yay`, manual `makepkg -si`).
+
 ## Other systems
 
 Gixy is distributed on [PyPI](https://pypi.python.org/pypi/gixy-ng). The best way to install it is with pip:
