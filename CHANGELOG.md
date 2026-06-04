@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.48] - 2026-06-04
+
 ### Fixed
 - **Circular `include` directives no longer crash the parser**: nginx configs that contained a cycle (e.g. a file in `/etc/nginx/conf.d/` whose body says `include /etc/nginx/conf.d/*.conf;` — the glob matches the including file itself, or A→B→A across files) sent `gixy/parser/nginx_parser.py` into unbounded recursion. On environments with enough stack budget that surfaced as `RecursionError: maximum recursion depth exceeded` ([#113](https://github.com/dvershinin/gixy/issues/113)); on others the cycle silently inflated the parsed tree with hundreds of duplicated directives. `NginxParser` now tracks the canonical path of every file currently being parsed and skips any include that re-enters one already on the stack, emitting a single `Skipping circular include: …` WARNING per cycle. Applies to both filesystem includes and `nginx -T` dump-mode includes.
 
