@@ -8,11 +8,12 @@ from gixy.plugins.plugin import Plugin
 class nginx_cves(Plugin):
     """Advise on nginx CVEs by binary version, with config-trigger enrichment.
 
-    Pass ``--nginx-version=1.29.8`` to enable the check. Every CVE whose
-    affected range covers the supplied version is reported with the
-    upgrade target. For CVEs that also have a config-pattern trigger
-    (e.g. CVE-2026-42945, mp4-module CVEs, resolver CVEs, HTTP/2 and
-    HTTP/3 issues), the report attaches to the offending directives.
+    Pass ``--nginx-version=1.29.8`` to enable the check. Pure binary-level
+    CVEs whose affected range covers the supplied version are reported
+    with the upgrade target. CVEs with a config-pattern trigger (e.g.
+    CVE-2026-42945, mp4-module CVEs, resolver CVEs, HTTP/2 and HTTP/3
+    issues) are reported only when the trigger is present and attach to
+    the offending directives.
 
     Without ``--nginx-version``, the check stays silent: gixy is
     config-static and has no view of the binary, so there is nothing
@@ -26,10 +27,9 @@ class nginx_cves(Plugin):
     severity = gixy.severity.HIGH
     description = (
         "Maintains a database of nginx CVEs. When --nginx-version is "
-        "supplied, every CVE fixed in a later release is reported. "
-        "CVEs that also have a config-pattern trigger enrich the "
-        "report with the offending directives. Without a version, the "
-        "check is silent."
+        "supplied, applicable CVEs fixed in a later release are reported. "
+        "Config-triggered CVEs are reported only when the offending "
+        "directives are present. Without a version, the check is silent."
     )
     options = {
         "version": "",

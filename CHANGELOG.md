@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.50] - 2026-07-16
+
+### Added
+- **`nginx_cves`**: Added **CVE-2026-42533**, a heap buffer overflow when regex `map` captures are evaluated before the map output or a volatile map result changes between script passes. Affects NGINX OSS `0.9.6` through vulnerable 1.30/1.31 releases. Mitigation: upgrade to **1.30.4** (stable) or **1.31.3** (mainline). Advisory: <https://my.f5.com/manage/s/article/K000162097>.
+- **`nginx_cves`**: Added **CVE-2026-60005**, uninitialized memory access when unnamed regex captures are used with `slice` or background cache-update subrequests. Affects NGINX OSS `1.15.8` through vulnerable 1.30/1.31 releases. Mitigation: upgrade to **1.30.4** or **1.31.3**. Advisory: <https://my.f5.com/manage/s/article/K000162100>.
+- **`nginx_cves`**: Added **CVE-2026-56434**, a use-after-free when SSI processes an unbuffered proxied response. Affects NGINX OSS `0.8.11` through vulnerable 1.30/1.31 releases when `ssi on`, `proxy_buffering off`, and `proxy_pass` are effective together. Mitigation: upgrade to **1.30.4** or **1.31.3**. Advisory: <https://my.f5.com/manage/s/article/K000162098>.
+
+### Fixed
+- **`nginx_cves` documentation**: Corrected the check description and examples to reflect config-gated reporting and the database's current location.
+
 ## [0.2.49] - 2026-06-18
 
 ### Added

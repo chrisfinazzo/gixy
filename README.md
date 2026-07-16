@@ -29,7 +29,7 @@ Gixy detects a wide range of security issues across these categories:
 | Category | Security Checks |
 |----------|-----------------|
 | 🔓 **Injection & Forgery** | [SSRF][ssrf] &#183; [HTTP Splitting][http_splitting] &#183; [Host Spoofing][host_spoofing] &#183; [Origin Bypass][origins] |
-| 🚨 **Known CVEs** | [Nginx CVE Advisor][nginx_cves] (pass `--nginx-version=X.Y.Z`; covers CVE-2026-42945 "NGINX Rift") |
+| 🚨 **Known CVEs** | [NGINX CVE Advisor][nginx_cves] (pass `--nginx-version=X.Y.Z`; mirrors the NGINX Open Source advisory database) |
 | 🔐 **TLS & Encryption** | [Weak SSL/TLS][weak_ssl_tls] &#183; [HTTP/2 Misdirected Request][http2_misdirected_request] &#183; [QUIC BPF Reuseport][quic_bpf_reuseport] &#183; [OCSP Stapling Without Resolver][ssl_stapling_without_resolver] &#183; [Version Disclosure][version_disclosure] |
 | 📂 **Path Traversal** | [Alias Traversal][alias_traversal] &#183; [Proxy Pass Normalized][proxy_pass_normalized] |
 | 📋 **Header Security** | [HSTS Header][hsts_header] &#183; [Header Redefinition][add_header_redefinition] &#183; [Multiline Headers][add_header_multiline] &#183; [Content-Type via add_header][add_header_content_type] |

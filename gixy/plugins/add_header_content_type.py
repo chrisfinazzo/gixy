@@ -21,7 +21,10 @@ class add_header_content_type(Plugin):
             if self._has_hide_header_content_type(directive):
                 return
 
-            reason = f'You probably want "default_type {directive.value};" instead of "add_header" or "more_set_headers"'
+            reason = (
+                f'You probably want "default_type {directive.value};" instead '
+                'of "add_header" or "more_set_headers"'
+            )
             self.add_issue(
                 directive=directive,
                 reason=reason,

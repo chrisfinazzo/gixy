@@ -128,7 +128,9 @@ class Variable:
 
                 compiled_val = compile_script(
                     var.provider.dest_val, ctx=var.provider.src_val
-                )  # Doesn't work for 'map $document_uri $v { ~*^[^\r\n]+$ $document_uri; }' but nothing we can do about that.
+                )
+                # A map whose value repeats its source variable cannot be
+                # resolved here, but no additional information is available.
                 for dep in compiled_val:
                     if dep.can_contain(char):
                         return True

@@ -166,7 +166,169 @@ def ranges_excluding_fixes(spans, fixed_versions):
 # --------------------------------------------------------------------------
 
 _UNNAMED_BACKREF = re.compile(r"\$(?:[1-9]|\{[1-9]\})")
+_VARIABLE_REF = re.compile(
+    r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*|[1-9])\}|" r"([A-Za-z_][A-Za-z0-9_]*|[1-9]))"
+)
 _SCRIPT_ENGINE_TRIGGERS = ("rewrite", "if", "set")
+
+
+def _walk_directives(root):
+    """Yield every directive and block below ``root`` depth-first.
+
+    Args:
+        root: Root Block of the parsed nginx config tree.
+
+    Yields:
+        Directive and Block objects in configuration order.
+    """
+    for child in root.children:
+        yield child
+        if child.is_block:
+            yield from _walk_directives(child)
+
+
+def _variable_refs(value):
+    """Return nginx variable names from ``value`` in evaluation order.
+
+    Args:
+        value: One directive argument or other complex-value string.
+
+    Returns:
+        Variable names without ``$`` / braces, preserving duplicates.
+    """
+    return [match.group(1) or match.group(2) for match in _VARIABLE_REF.finditer(value)]
+
+
+def _effective_directive(block, name):
+    """Return the closest directive named ``name`` visible from ``block``.
+
+    Args:
+        block: Block whose local and inherited configuration is inspected.
+        name: Directive name to resolve.
+
+    Returns:
+        The closest matching directive, or ``None``.
+    """
+    current = block
+    while current is not None:
+        if current.is_block:
+            directive = current.some(name, flat=False)
+            if directive is not None:
+                return directive
+        current = current.parent
+    return None
+
+
+def _inside_block(directive, block):
+    """Return True when ``directive`` is nested inside ``block``.
+
+    Args:
+        directive: Directive or Block to inspect.
+        block: Candidate ancestor block.
+
+    Returns:
+        True if ``block`` occurs in the directive's parent chain.
+    """
+    return any(parent is block for parent in directive.parents)
+
+
+def check_map_regex_buffer_overflow(root):
+    """Find config patterns exposing CVE-2026-42533.
+
+    The first upstream reproducer places a capture affected by a regex
+    ``map`` before the map output in the same complex-value expression.
+    Evaluating the map changes the capture between nginx's length and copy
+    passes. The second reproducer consumes a regex map marked ``volatile``,
+    whose non-cacheable result can likewise change between those passes.
+
+    Args:
+        root: Root Block of the parsed nginx config tree.
+
+    Yields:
+        ``(consumer, map_block)`` pairs for each unsafe expression.
+    """
+    for map_block in root.find_recursive("map"):
+        capture_names = set()
+        is_volatile = False
+        for entry in map_block.gather_map_directives(map_block.children):
+            if entry.src_val == "volatile":
+                is_volatile = True
+            if not entry.is_regex:
+                continue
+            capture_names.update(str(name) for name in entry.regex.groups if name != 0)
+
+        if not capture_names:
+            continue
+
+        map_variable = map_block.variable
+        for consumer in _walk_directives(root):
+            if consumer is map_block or _inside_block(consumer, map_block):
+                continue
+            for arg in consumer.args:
+                refs = _variable_refs(arg)
+                if map_variable not in refs:
+                    continue
+                map_index = refs.index(map_variable)
+                capture_precedes_map = any(
+                    ref in capture_names for ref in refs[:map_index]
+                )
+                if capture_precedes_map or is_volatile:
+                    yield consumer, map_block
+                    break
+
+
+def check_unnamed_capture_subrequest(root):
+    """Find unnamed captures exposed to CVE-2026-60005 subrequests.
+
+    Args:
+        root: Root Block of the parsed nginx config tree.
+
+    Yields:
+        ``(capture_consumer, subrequest_trigger)`` tuples where an unnamed
+        capture is consumed under ``slice`` or background cache updates.
+    """
+    for consumer in _walk_directives(root):
+        if not any(_UNNAMED_BACKREF.search(arg) for arg in consumer.args):
+            continue
+
+        slice_directive = _effective_directive(consumer.parent, "slice")
+        if (
+            slice_directive is not None
+            and slice_directive.args
+            and slice_directive.args[0] != "0"
+        ):
+            yield consumer, slice_directive
+            continue
+
+        background_update = _effective_directive(
+            consumer.parent, "proxy_cache_background_update"
+        )
+        if (
+            background_update is not None
+            and background_update.args
+            and background_update.args[0] == "on"
+        ):
+            yield consumer, background_update
+
+
+def check_ssi_unbuffered_proxy(root):
+    """Find unbuffered SSI proxying exposed to CVE-2026-56434.
+
+    Args:
+        root: Root Block of the parsed nginx config tree.
+
+    Yields:
+        ``(proxy_pass, proxy_buffering)`` tuples where effective settings
+        also enable SSI in the same context.
+    """
+    for proxy_pass in root.find_recursive("proxy_pass"):
+        ssi = _effective_directive(proxy_pass.parent, "ssi")
+        buffering = _effective_directive(proxy_pass.parent, "proxy_buffering")
+        if ssi is None or not ssi.args or ssi.args[0] != "on":
+            continue
+        if buffering is None or not buffering.args or buffering.args[0] != "off":
+            continue
+        yield proxy_pass, buffering
 
 
 def check_rewrite_rift(root):
@@ -650,6 +812,39 @@ def _advisory(cve_id):
 
 
 CVES = (
+    {
+        "id": "CVE-2026-42533",
+        "nickname": "",
+        "summary": "Heap buffer overflow when using map with regex matching.",
+        "severity": gixy.severity.HIGH,
+        "advisory": _advisory("CVE-2026-42533"),
+        "vulnerable_oss": (((0, 9, 6), (1, 31, 2)),),
+        "fixed_oss": ("1.30.4", "1.31.3"),
+        "fixed_plus": ("R36 P7", "37.0.3.1"),  # NOSONAR - Plus version
+        "config_check": check_map_regex_buffer_overflow,
+    },
+    {
+        "id": "CVE-2026-60005",
+        "nickname": "",
+        "summary": "Uninitialized memory access in ngx_http_slice_module.",
+        "severity": gixy.severity.MEDIUM,
+        "advisory": _advisory("CVE-2026-60005"),
+        "vulnerable_oss": (((1, 15, 8), (1, 31, 2)),),
+        "fixed_oss": ("1.30.4", "1.31.3"),
+        "fixed_plus": ("R36 P7", "37.0.3.1"),  # NOSONAR - Plus version
+        "config_check": check_unnamed_capture_subrequest,
+    },
+    {
+        "id": "CVE-2026-56434",
+        "nickname": "",
+        "summary": "Use-after-free in ngx_http_ssi_module.",
+        "severity": gixy.severity.MEDIUM,
+        "advisory": _advisory("CVE-2026-56434"),
+        "vulnerable_oss": (((0, 8, 11), (1, 31, 2)),),
+        "fixed_oss": ("1.30.4", "1.31.3"),
+        "fixed_plus": ("R36 P7", "37.0.3.1"),  # NOSONAR - Plus version
+        "config_check": check_ssi_unbuffered_proxy,
+    },
     {
         "id": "CVE-2026-42530",
         "nickname": "",

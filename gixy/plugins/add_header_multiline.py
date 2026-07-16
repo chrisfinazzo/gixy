@@ -8,7 +8,8 @@ class add_header_multiline(Plugin):
         Insecure example:
     add_header Content-Security-Policy "
         default-src: 'none';
-        img-src data: https://mc.yandex.ru https://yastatic.net *.yandex.net https://mc.yandex.${tld} https://mc.yandex.ru;
+        img-src data: https://mc.yandex.ru https://yastatic.net *.yandex.net
+            https://mc.yandex.${tld} https://mc.yandex.ru;
         font-src data: https://yastatic.net;";
     """
 
@@ -29,7 +30,8 @@ class add_header_multiline(Plugin):
                 break
             if "\n" in value:
                 reason = (
-                    f'A newline character is found in the directive "{directive.name}". The resulting header {header} will be '
+                    f"A newline character is found in the directive "
+                    f'"{directive.name}". The resulting header {header} will be '
                     "incomplete. Ensure the value is fit on a single line"
                 )
                 self.add_issue(

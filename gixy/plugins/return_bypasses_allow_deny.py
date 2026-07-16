@@ -14,7 +14,11 @@ class return_bypasses_allow_deny(Plugin):
 
     summary = "Return directive bypasses allow/deny restrictions in the same context."
     severity = gixy.severity.MEDIUM
-    description = "The return directive is executed before allow/deny take effect in the same context. Consider using a named location and try_files, or restructure access control."
+    description = (
+        "The return directive is executed before allow/deny take effect in the "
+        "same context. Consider using a named location and try_files, or "
+        "restructure access control."
+    )
     directives = ["allow", "deny"]
 
     def audit(self, directive):

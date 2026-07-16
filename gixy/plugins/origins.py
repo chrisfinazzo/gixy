@@ -54,7 +54,10 @@ class origins(Plugin):
     supports_full_config = True
     options = {"domains": ["*"], "https_only": False, "lower_hostname": True}
     options_help = {
-        "domains": 'Comma-separated list of trusted registrable domains. Use * to disable third-party checks. Example: "example.com,foo.bar".',
+        "domains": (
+            "Comma-separated list of trusted registrable domains. Use * to "
+            'disable third-party checks. Example: "example.com,foo.bar".'
+        ),
         "https_only": "Boolean. Only allow https scheme in origins/referers when true.",
         "lower_hostname": "Boolean. Normalize hostnames to lowercase prior to validation.",
     }
@@ -112,7 +115,7 @@ class origins(Plugin):
         return (
             self.psl.privatesuffix(i.strip("."))
             == self.psl.privatesuffix(j.strip("."))
-            != None
+            is not None
         )
 
     def parse_url(self, url):
@@ -121,7 +124,7 @@ class origins(Plugin):
             if not parsed_url.hostname or not parsed_url.scheme:
                 # Attempt to fixup the url for the second pass
                 # e.g. 'domain.com$', 'google.com/lol', '/lol$'
-                # should become 'https://def.comdomain.com', 'https://def.comgoogle.com/lol', and 'https://def.comabc.com/lol'.
+                # Prefix malformed values so the second pass can parse them.
                 if url[0] == "/":
                     url = "abc.com" + url
                 if "://" not in url:
@@ -138,7 +141,7 @@ class origins(Plugin):
                 return
 
             return parsed_url
-        except:
+        except (TypeError, ValueError):
             self.invalid_set.add(url)
 
     def _analyze_and_report(self, pattern, case_sensitive, name, directive):
@@ -306,6 +309,7 @@ class origins(Plugin):
                     if not parsed_url.scheme or not parsed_url.hostname:
                         self.invalid_set.add(url)
                         self.insecure_set.remove(url)
+                        continue
                     if name == "origin":
                         if (
                             len(
@@ -318,7 +322,7 @@ class origins(Plugin):
                         ):
                             self.invalid_set.add(url)
                             self.insecure_set.remove(url)
-                except:  # nosec B112 - continue on URL parse errors
+                except (TypeError, ValueError):  # nosec B112
                     continue
             if self.insecure_set:
                 invalids = '", "'.join(self.insecure_set).replace("`", "a")
@@ -329,7 +333,10 @@ class origins(Plugin):
             invalids = '", "'.join(self.invalid_set).replace("`", "a")
             reason = f'Regex matches invalid "{invalids}" as a valid {name}.'
             if name == "origin":
-                reason += " Origin headers must in the format of <scheme>://<hostname>[:port]. No path can be specified."
+                reason += (
+                    " Origin headers must in the format of "
+                    "<scheme>://<hostname>[:port]. No path can be specified."
+                )
             else:
                 reason += " Referer headers should use absolute URLs including a scheme and hostname."
             if self.lower_hostname:

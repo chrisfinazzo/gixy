@@ -124,7 +124,10 @@ class hsts_header(Plugin):
                     self.make_fix(
                         title="Add HSTS header",
                         search="server {",
-                        replace='server {\n    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;',
+                        replace=(
+                            "server {\n    add_header Strict-Transport-Security "
+                            '"max-age=31536000; includeSubDomains" always;'
+                        ),
                         description="Add HSTS header with 1 year max-age",
                     ),
                 ],

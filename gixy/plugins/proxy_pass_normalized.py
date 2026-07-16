@@ -16,7 +16,13 @@ class proxy_pass_normalized(Plugin):
 
     summary = "Detect path after host in proxy_pass (potential URL decoding issue)"
     severity = gixy.severity.MEDIUM
-    description = "A path (beginning with a slash) after the host in proxy_pass leads to the path being decoded and normalized before proxying downstream, leading to unexpected behavior related to encoded slashes like %2F..%2F. Likewise, the usage of 'rewrite ^ $request_uri;' without using '$1' or '$uri' (or another captured group) in the path of proxy_pass leads to double-encoding of paths."
+    description = (
+        "A path (beginning with a slash) after the host in proxy_pass is "
+        "decoded and normalized before proxying downstream. This can cause "
+        "unexpected behavior for encoded slashes such as %2F..%2F. Likewise, "
+        "using 'rewrite ^ $request_uri;' without '$1', '$uri', or another "
+        "captured group in the proxy_pass path can double-encode paths."
+    )
     directives = ["proxy_pass"]
 
     def __init__(self, config):
@@ -51,7 +57,8 @@ class proxy_pass_normalized(Plugin):
         proxy_pass_args = directive.args
 
         if proxy_pass_args[0].startswith("$") and "/" not in proxy_pass_args[0]:
-            # If proxy pass destination is defined by only a variable, it is not possible to check for path normalization issues
+            # A destination containing only a variable cannot be checked for
+            # path-normalization issues statically.
             return
 
         parsed = urlparse(proxy_pass_args[0])
@@ -87,7 +94,8 @@ class proxy_pass_normalized(Plugin):
             severity=self.severity,
             directive=[directive, directive.parent],
             reason=(
-                "Found a path after the host in proxy_pass, without using $request_uri and a variable (such as $1 or $uri). "
+                "Found a path after the host in proxy_pass, without using "
+                "$request_uri and a variable (such as $1 or $uri). "
                 "This can lead to path decoding issues or double-encoding issues."
             ),
         )

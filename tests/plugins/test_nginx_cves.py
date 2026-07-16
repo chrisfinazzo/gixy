@@ -618,3 +618,279 @@ http {
     new_cves = {"CVE-2026-42055", "CVE-2026-48142", "CVE-2026-42530"}
     assert new_cves.isdisjoint(_cves_fired("1.30.3", multi))
     assert new_cves.isdisjoint(_cves_fired("1.31.2", multi))
+
+
+# --------------------------------------------------------------------------
+# 2026-07-15 security release (nginx 1.30.4 / 1.31.3)
+# --------------------------------------------------------------------------
+
+
+_MAP_CAPTURE_BEFORE_OUTPUT = """events {}
+http {
+    map $uri $mapped {
+        ~^(?<capture>.*)$ $capture;
+        default "";
+    }
+    server {
+        listen 80;
+        set $capture "";
+        set $temp "$capture $mapped";
+    }
+}
+"""
+
+_MAP_OUTPUT_BEFORE_CAPTURE = """events {}
+http {
+    map $uri $mapped {
+        ~^(?<capture>.*)$ $capture;
+        default "";
+    }
+    server {
+        listen 80;
+        set $capture "";
+        set $temp "$mapped $capture";
+    }
+}
+"""
+
+_VOLATILE_MAP_OUTPUT = """events {}
+http {
+    map prefix:$capture $map_volatile {
+        volatile;
+        ~^(?<capture>.*)$ $capture;
+        default "";
+    }
+    server {
+        listen 80;
+        set $capture "";
+        set $temp "$map_volatile";
+    }
+}
+"""
+
+_SLICE_WITH_UNNAMED_CAPTURE = """events {}
+http {
+    map test $my_map {
+        volatile;
+        ~mismatch(.*) 1;
+        default "";
+    }
+    server {
+        listen 80;
+        location ~(.*) {
+            slice 50;
+            proxy_set_header Test $my_map$1;
+            proxy_set_header Range $slice_range;
+            proxy_pass http://backend;
+        }
+    }
+}
+"""
+
+_BACKGROUND_UPDATE_WITH_UNNAMED_CAPTURE = """events {}
+http {
+    server {
+        listen 80;
+        location ~(.*) {
+            proxy_cache_background_update on;
+            proxy_set_header Test $1;
+            proxy_pass http://backend;
+        }
+    }
+}
+"""
+
+_SSI_UNBUFFERED_PROXY = """events {}
+http {
+    server {
+        listen 80;
+        location / {
+            ssi on;
+            proxy_buffering off;
+            proxy_pass http://backend;
+        }
+    }
+}
+"""
+
+
+def test_cve_2026_42533_fires_when_capture_precedes_map_output():
+    assert "CVE-2026-42533" in _cves_fired("1.31.2", _MAP_CAPTURE_BEFORE_OUTPUT)
+
+
+def test_cve_2026_42533_fires_for_volatile_map_output():
+    assert "CVE-2026-42533" in _cves_fired("1.30.3", _VOLATILE_MAP_OUTPUT)
+
+
+def test_cve_2026_42533_silent_when_map_output_precedes_capture():
+    assert "CVE-2026-42533" not in _cves_fired("1.31.2", _MAP_OUTPUT_BEFORE_CAPTURE)
+
+
+def test_cve_2026_42533_silent_without_unsafe_expression():
+    conf = """events {}
+http {
+    map $uri $mapped { ~^(?<capture>.*)$ $capture; }
+    server { listen 80; return 200 $mapped; }
+}
+"""
+    assert "CVE-2026-42533" not in _cves_fired("1.31.2", conf)
+
+
+def test_cve_2026_42533_silent_on_fixed_versions():
+    for version in ("1.30.4", "1.31.3"):
+        assert "CVE-2026-42533" not in _cves_fired(version, _MAP_CAPTURE_BEFORE_OUTPUT)
+
+
+def test_cve_2026_42533_silent_before_vulnerable_range():
+    assert "CVE-2026-42533" not in _cves_fired("0.9.5", _MAP_CAPTURE_BEFORE_OUTPUT)
+
+
+def test_cve_2026_60005_fires_with_slice_and_unnamed_capture():
+    assert "CVE-2026-60005" in _cves_fired("1.31.2", _SLICE_WITH_UNNAMED_CAPTURE)
+
+
+def test_cve_2026_60005_fires_with_background_update():
+    assert "CVE-2026-60005" in _cves_fired(
+        "1.30.3", _BACKGROUND_UPDATE_WITH_UNNAMED_CAPTURE
+    )
+
+
+def test_cve_2026_60005_fires_with_inherited_slice():
+    conf = """events {}
+http {
+    server {
+        listen 80;
+        slice 1m;
+        location ~(.*) { proxy_set_header Test $1; }
+    }
+}
+"""
+    assert "CVE-2026-60005" in _cves_fired("1.31.2", conf)
+
+
+def test_cve_2026_60005_silent_with_named_capture_only():
+    conf = """events {}
+http {
+    server {
+        listen 80;
+        location ~(?<name>.*) {
+            slice 1m;
+            proxy_set_header Test $name;
+        }
+    }
+}
+"""
+    assert "CVE-2026-60005" not in _cves_fired("1.31.2", conf)
+
+
+def test_cve_2026_60005_silent_when_slice_disabled():
+    conf = """events {}
+http {
+    server {
+        listen 80;
+        location ~(.*) {
+            slice 0;
+            proxy_set_header Test $1;
+        }
+    }
+}
+"""
+    assert "CVE-2026-60005" not in _cves_fired("1.31.2", conf)
+
+
+def test_cve_2026_60005_silent_without_subrequest_trigger():
+    conf = """events {}
+http { server { listen 80; location ~(.*) { proxy_set_header Test $1; } } }
+"""
+    assert "CVE-2026-60005" not in _cves_fired("1.31.2", conf)
+
+
+def test_cve_2026_60005_silent_on_fixed_versions():
+    for version in ("1.30.4", "1.31.3"):
+        assert "CVE-2026-60005" not in _cves_fired(version, _SLICE_WITH_UNNAMED_CAPTURE)
+
+
+def test_cve_2026_60005_silent_before_vulnerable_range():
+    assert "CVE-2026-60005" not in _cves_fired("1.15.7", _SLICE_WITH_UNNAMED_CAPTURE)
+
+
+def test_cve_2026_56434_fires_for_unbuffered_ssi_proxy():
+    assert "CVE-2026-56434" in _cves_fired("1.31.2", _SSI_UNBUFFERED_PROXY)
+
+
+def test_cve_2026_56434_fires_with_inherited_settings():
+    conf = """events {}
+http {
+    ssi on;
+    proxy_buffering off;
+    server { listen 80; location / { proxy_pass http://backend; } }
+}
+"""
+    assert "CVE-2026-56434" in _cves_fired("1.30.3", conf)
+
+
+def test_cve_2026_56434_respects_nearer_overrides():
+    ssi_off = """events {}
+http {
+    ssi on;
+    proxy_buffering off;
+    server { listen 80; location / { ssi off; proxy_pass http://backend; } }
+}
+"""
+    buffering_on = """events {}
+http {
+    ssi on;
+    proxy_buffering off;
+    server {
+        listen 80;
+        location / { proxy_buffering on; proxy_pass http://backend; }
+    }
+}
+"""
+    for conf in (ssi_off, buffering_on):
+        assert "CVE-2026-56434" not in _cves_fired("1.31.2", conf)
+
+
+def test_cve_2026_56434_requires_all_three_directives():
+    configs = (
+        "events {} http { server { listen 80; location / { "
+        "proxy_buffering off; proxy_pass http://backend; } } }",
+        "events {} http { server { listen 80; location / { "
+        "ssi on; proxy_pass http://backend; } } }",
+        "events {} http { server { listen 80; location / { "
+        "ssi on; proxy_buffering off; } } }",
+    )
+    for conf in configs:
+        assert "CVE-2026-56434" not in _cves_fired("1.31.2", conf)
+
+
+def test_cve_2026_56434_silent_on_fixed_versions():
+    for version in ("1.30.4", "1.31.3"):
+        assert "CVE-2026-56434" not in _cves_fired(version, _SSI_UNBUFFERED_PROXY)
+
+
+def test_cve_2026_56434_silent_before_vulnerable_range():
+    assert "CVE-2026-56434" not in _cves_fired("0.8.10", _SSI_UNBUFFERED_PROXY)
+
+
+def test_2026_07_release_cves_silent_on_fully_patched_versions():
+    multi = """events {}
+http {
+    map $uri $mapped { ~^(?<capture>.*)$ $capture; }
+    server {
+        listen 80;
+        set $capture "";
+        set $temp "$capture $mapped";
+        location ~(.*) {
+            slice 1m;
+            proxy_set_header Test $1;
+            ssi on;
+            proxy_buffering off;
+            proxy_pass http://backend;
+        }
+    }
+}
+"""
+    new_cves = {"CVE-2026-42533", "CVE-2026-60005", "CVE-2026-56434"}
+    assert new_cves.isdisjoint(_cves_fired("1.30.4", multi))
+    assert new_cves.isdisjoint(_cves_fired("1.31.3", multi))
