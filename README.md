@@ -31,7 +31,7 @@ Gixy detects a wide range of security issues across these categories:
 | 🔓 **Injection & Forgery** | [SSRF][ssrf] &#183; [HTTP Splitting][http_splitting] &#183; [Host Spoofing][host_spoofing] &#183; [Origin Bypass][origins] |
 | 🚨 **Known CVEs** | [NGINX CVE Advisor][nginx_cves] (pass `--nginx-version=X.Y.Z`; mirrors the NGINX Open Source advisory database) |
 | 🔐 **TLS & Encryption** | [Weak SSL/TLS][weak_ssl_tls] &#183; [Post-Quantum ssl_ecdh_curve][ssl_ecdh_curve] &#183; [HTTP/2 Misdirected Request][http2_misdirected_request] &#183; [QUIC BPF Reuseport][quic_bpf_reuseport] &#183; [OCSP Stapling Without Resolver][ssl_stapling_without_resolver] &#183; [Stapling With Let's Encrypt][ssl_stapling_letsencrypt] &#183; [Version Disclosure][version_disclosure] |
-| 📂 **Path Traversal** | [Alias Traversal][alias_traversal] &#183; [Proxy Pass Normalized][proxy_pass_normalized] |
+| 📂 **Filesystem & Paths** | [Filesystem Root Exposure][filesystem_root_exposure] &#183; [Alias Traversal][alias_traversal] &#183; [Proxy Pass Normalized][proxy_pass_normalized] |
 | 📋 **Header Security** | [HSTS Header][hsts_header] &#183; [Header Redefinition][add_header_redefinition] &#183; [Multiline Headers][add_header_multiline] &#183; [Content-Type via add_header][add_header_content_type] |
 | 🚦 **Access Control** | [Allow Without Deny][allow_without_deny] &#183; [Return Bypasses ACL][return_bypasses_allow_deny] &#183; [Valid Referers][valid_referers] &#183; [Status Page Exposed][status_page_exposed] |
 | 🌐 **DNS & Resolver** | [External Resolver][resolver_external] &#183; [Missing Resolver][missing_resolver] |
@@ -53,6 +53,7 @@ Gixy detects a wide range of security issues across these categories:
 [nginx_cves]: https://gixy.getpagespeed.com/checks/nginx-cves/
 [hsts_header]: https://gixy.getpagespeed.com/plugins/hsts_header/
 [version_disclosure]: https://gixy.getpagespeed.com/plugins/version_disclosure/
+[filesystem_root_exposure]: https://gixy.getpagespeed.com/checks/filesystem-root-exposure/
 [alias_traversal]: https://gixy.getpagespeed.com/plugins/aliastraversal/
 [proxy_pass_normalized]: https://gixy.getpagespeed.com/plugins/proxy_pass_normalized/
 [add_header_redefinition]: https://gixy.getpagespeed.com/plugins/addheaderredefinition/

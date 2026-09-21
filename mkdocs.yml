@@ -66,6 +66,7 @@ nav:
   - checks/host-spoofing.md
   - checks/valid-referers.md
   - checks/add-header-multiline.md
+  - checks/filesystem-root-exposure.md
   - checks/alias-traversal.md
   - checks/if-is-evil.md
   - checks/allow-without-deny.md

@@ -35,6 +35,7 @@ Gixy — это инструмент для анализа конфигурац�
 *   [Подделка заголовка Host](checks/host-spoofing.md)
 *   [none в valid_referers](checks/valid-referers.md)
 *   [Многострочные заголовки ответа](checks/add-header-multiline.md)
+*   [Доступ к корню файловой системы](checks/filesystem-root-exposure.md)
 *   [Траверс путей из‑за неправильного alias](checks/alias-traversal.md)
 *   [if опасен в контексте location](checks/if-is-evil.md)
 *   [allow без deny](checks/allow-without-deny.md)

@@ -35,6 +35,7 @@ Gixy 目前可以发现：
 *   [伪造请求的 Host 头](checks/host-spoofing.md)
 *   [在 valid_referers 中使用 none](checks/valid-referers.md)
 *   [多行响应头](checks/add-header-multiline.md)
+*   [文件系统根目录暴露](checks/filesystem-root-exposure.md)
 *   [错误 alias 导致路径穿越](checks/alias-traversal.md)
 *   [在 location 中使用 if 存在风险](checks/if-is-evil.md)
 *   [仅 allow 未配套 deny](checks/allow-without-deny.md)

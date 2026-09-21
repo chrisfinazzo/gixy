@@ -36,6 +36,7 @@ Gixy can find various NGINX configuration security issues, as well as NGINX conf
 *   [HTTP Response Splitting](checks/http-splitting.md)
 *   [Request's Host Header Forgery](checks/host-spoofing.md)
 *   [Problems with Referrer/Origin Validation](checks/origins.md)
+*   [Filesystem Root Exposure](checks/filesystem-root-exposure.md)
 *   [Path Traversal via Misconfigured Alias](checks/alias-traversal.md)
 *   [Proxy Pass Path Normalization Issues](checks/proxy-pass-normalized.md)
 *   [Regular Expression Denial of Service (ReDoS)](checks/regex-redos.md)
