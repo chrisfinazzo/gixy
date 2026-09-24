@@ -61,6 +61,9 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: dist/${{ matrix.artifact }}
+          # Release runs copy these to the GitHub release; the artifact is only a
+          # job handoff. The 90-day default filled the 500 MB Actions storage quota.
+          retention-days: ${{ github.event_name == 'release' && 1 || 7 }}
 
   checksums:
     name: Generate checksums and upload assets
