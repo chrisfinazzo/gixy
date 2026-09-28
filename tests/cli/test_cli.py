@@ -100,6 +100,8 @@ def test_cli_main_runs_with_plugin_options(monkeypatch):
 
     # Avoid hitting the real Manager and parser logic
     monkeypatch.setattr("gixy.cli.main.Gixy", DummyGixy, raising=True)
+    # --deep wiring is under test, not the optional ReDoctor install
+    monkeypatch.setattr("gixy.cli.main.REDOCTOR_AVAILABLE", True)
     monkeypatch.setattr(
         sys,
         "argv",
