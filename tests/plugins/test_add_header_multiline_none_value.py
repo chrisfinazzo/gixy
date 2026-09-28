@@ -129,7 +129,9 @@ class TestAddHeaderMultilineNoneValueFailsWithoutFix:
         value = None
 
         with pytest.raises(
-            TypeError, match="argument of type 'NoneType' is not iterable"
+            # Python 3.14 reworded this to "is not a container or iterable"
+            TypeError,
+            match="argument of type 'NoneType' is not (a container or )?iterable",
         ):
             _ = "\n " in value  # NOSONAR - intentionally tests TypeError on None
 
