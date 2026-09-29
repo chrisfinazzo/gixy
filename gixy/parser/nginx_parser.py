@@ -3,6 +3,8 @@ import glob
 import logging
 import os
 
+from crossplane import analyzer as nginx_analyzer
+
 from gixy.core.exceptions import InvalidConfiguration
 from gixy.directives import block, directive
 from gixy.parser import raw_parser
@@ -190,16 +192,23 @@ class NginxParser:
                 parent.name in ["map", "geo"] and parsed_type == "directive"
             ):  # Hack because included maps are treated as directives (bleh)
                 if isinstance(parsed_args, list) and len(parsed_args) > 1:
-                    error_msg = "Invalid map with {} parameters: map {} {} {{ {} {}; }};".format(
-                        len(parsed_args),
-                        parent.args[0],
-                        parent.args[1],
-                        parsed_name,
-                        " ".join(parsed_args),
+                    error_msg = (
+                        "Invalid map with {} parameters: {} {} {{ {} {}; }};".format(
+                            len(parsed_args),
+                            parent.name,
+                            " ".join(parent.args),
+                            parsed_name,
+                            " ".join(parsed_args),
+                        )
                     )
                     LOG.warn(f'Failed to parse "{self.path_info}": {error_msg}')
                     continue
                 parsed_type = "hash_value"
+
+            if parsed_type in ("directive", "block") and self._nginx_rejects(
+                parsed_type, parsed_name, parsed_args, parsed_line
+            ):
+                continue
 
             directive_inst = self.directive_factory(
                 parsed_type, parsed_name, parsed_args
@@ -209,6 +218,39 @@ class NginxParser:
                 directive_inst.line = parsed_line
                 directive_inst.file = self.path_info
                 parent.append(directive_inst)
+
+    def _nginx_rejects(self, parsed_type, parsed_name, parsed_args, parsed_line):
+        """Whether nginx itself would refuse to load this directive.
+
+        We parse with check_args=False to stay tolerant of unknown directives,
+        but a known directive with an argument count nginx rejects (e.g. a bare
+        "proxy_pass;") can never influence runtime behavior, while typed
+        directive classes and plugins assume nginx-valid arity. Skip it instead
+        of crashing on it (nixpkgs writeNginxConfig feeds us such configs).
+        """
+        if parsed_type == "block":
+            args = parsed_args[0]
+            term = "{"
+        else:
+            args = parsed_args
+            term = ";"
+        stmt = {"directive": parsed_name, "line": parsed_line, "args": list(args)}
+        try:
+            nginx_analyzer.analyze(
+                self.path_info,
+                stmt,
+                term,
+                ctx=(),
+                strict=False,
+                check_ctx=False,
+                check_args=True,
+            )
+        except nginx_analyzer.NgxParserDirectiveArgumentsError as e:
+            LOG.warning(
+                f'Skipping directive nginx would reject in "{self.path_info}": {e}'
+            )
+            return True
+        return False
 
     def directive_factory(self, parsed_type, parsed_name, parsed_args):
         klass = self._get_directive_class(parsed_type, parsed_name)

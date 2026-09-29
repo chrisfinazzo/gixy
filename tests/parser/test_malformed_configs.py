@@ -1,5 +1,7 @@
 """Tests for graceful handling of malformed nginx configurations."""
 
+import io
+
 import pytest
 
 from gixy.core.exceptions import InvalidConfiguration
@@ -17,49 +19,42 @@ def _parse(config):
 
 
 class TestMalformedDirectives:
-    """Test that malformed directives raise InvalidConfiguration."""
+    """Directives with an argument count nginx itself rejects are skipped.
+
+    nginx would refuse to load such a config, so the directive can never
+    influence runtime behavior; gixy drops it with a warning instead of
+    crashing or hard-failing (nixpkgs' writeNginxConfig relies on this).
+    """
 
     def test_add_header_missing_value(self):
         """add_header requires 2-3 args."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "add_header" directive'
-        ):
-            _parse("add_header X-Test;")
+        tree = _parse("add_header X-Test;")
+        assert tree.children == []
 
     def test_add_header_no_args(self):
-        """add_header with no args should fail."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "add_header" directive'
-        ):
-            _parse("add_header;")
+        """add_header with no args is skipped."""
+        tree = _parse("add_header;")
+        assert tree.children == []
 
     def test_set_missing_value(self):
         """set requires exactly 2 args."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "set" directive'
-        ):
-            _parse("set $foo;")
+        tree = _parse("set $foo;")
+        assert tree.children == []
 
     def test_set_no_args(self):
-        """set with no args should fail."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "set" directive'
-        ):
-            _parse("set;")
+        """set with no args is skipped."""
+        tree = _parse("set;")
+        assert tree.children == []
 
     def test_auth_request_set_missing_value(self):
         """auth_request_set requires exactly 2 args."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "auth_request_set" directive'
-        ):
-            _parse("auth_request_set $foo;")
+        tree = _parse("auth_request_set $foo;")
+        assert tree.children == []
 
     def test_perl_set_missing_value(self):
         """perl_set requires exactly 2 args."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "perl_set" directive'
-        ):
-            _parse("perl_set $foo;")
+        tree = _parse("perl_set $foo;")
+        assert tree.children == []
 
     def test_set_by_lua_missing_value(self):
         """set_by_lua requires 2+ args."""
@@ -70,42 +65,32 @@ class TestMalformedDirectives:
 
     def test_rewrite_missing_replacement(self):
         """rewrite requires 2-3 args."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "rewrite" directive'
-        ):
-            _parse("rewrite ^/old;")
+        tree = _parse("rewrite ^/old;")
+        assert tree.children == []
 
     def test_rewrite_no_args(self):
-        """rewrite with no args should fail."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "rewrite" directive'
-        ):
-            _parse("rewrite;")
+        """rewrite with no args is skipped."""
+        tree = _parse("rewrite;")
+        assert tree.children == []
 
 
 class TestMalformedBlocks:
-    """Test that malformed blocks raise InvalidConfiguration."""
+    """Blocks with an argument count nginx itself rejects are skipped."""
 
     def test_location_no_args(self):
         """location requires 1-2 args."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "location" directive'
-        ):
-            _parse("location {}")
+        tree = _parse("location {}")
+        assert tree.children == []
 
     def test_map_missing_destination(self):
         """map requires exactly 2 args - Jim's original bug case."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "map" directive'
-        ):
-            _parse("map $uri {}")
+        tree = _parse("map $uri {}")
+        assert tree.children == []
 
     def test_map_no_args(self):
-        """map with no args should fail."""
-        with pytest.raises(
-            InvalidConfiguration, match='Failed to parse "map" directive'
-        ):
-            _parse("map {}")
+        """map with no args is skipped."""
+        tree = _parse("map {}")
+        assert tree.children == []
 
     def test_include_no_args(self):
         """include requires exactly 1 arg."""
@@ -239,3 +224,44 @@ class TestValidEdgeCases:
         assert if_block.variable == "$request_uri"
         assert if_block.operand == "~"
         assert if_block.value == "^/admin"
+
+
+class TestNginxRejectedDirectives:
+    """Regression tests for the nixpkgs writeNginxConfig scenario.
+
+    NixOS builds intentionally-broken configs (nixosTests.nginx) through
+    "gixy config" and expects gixy to survive them: nginx -t reports the
+    breakage at runtime. See https://github.com/NixOS/nixpkgs/pull/568041
+    where gixy 0.2.54 crashed with IndexError on a bare "proxy_pass;".
+    """
+
+    NIXOS_CONFIG = """
+        http {
+            server_tokens off;
+            server {
+                listen 0.0.0.0:80 default_server;
+                server_name !@$$(#*%;
+                location ~@#*$*!) {
+                    proxy_pass;;;;
+                }
+            }
+        }
+    """
+
+    def test_bare_proxy_pass_is_skipped(self):
+        tree = _parse(self.NIXOS_CONFIG)
+        location = tree.children[0].children[-1].children[-1]
+        assert location.name == "location"
+        assert "proxy_pass" not in [child.name for child in location.children]
+
+    def test_full_audit_does_not_crash_and_reports_nothing(self):
+        from gixy.core.config import Config
+        from gixy.core.manager import Manager
+
+        with Manager(config=Config(allow_includes=False)) as yoda:
+            yoda.audit("<test>", io.BytesIO(self.NIXOS_CONFIG.encode()))
+            assert sum(yoda.stats.values()) == 0
+
+    def test_block_where_simple_directive_expected_is_skipped(self):
+        tree = _parse("proxy_pass { }")
+        assert tree.children == []
