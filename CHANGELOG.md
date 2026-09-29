@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.55] - 2026-09-29
+
+### Fixed
+- **Crash on directives nginx itself would reject**: A directive with an argument count nginx refuses to load — such as the bare `proxy_pass;` that NixOS's `nixosTests.nginx` deliberately generates through `writeNginxConfig` — crashed gixy with `IndexError` in the `ssrf`/`proxy_pass_normalized` plugins (typed directives like `add_header;` failed earlier, at parse time). The parser now validates argument counts against nginx's own arity rules (via the bundled crossplane analyzer) and skips such directives with a warning: nginx would never load that config, so the directive cannot influence runtime behavior. This unblocks the nixpkgs `gixy` 0.2.x upgrade reverted in [NixOS/nixpkgs#568041](https://github.com/NixOS/nixpkgs/pull/568041).
+
 ## [0.2.54] - 2026-09-21
 
 ### Added
