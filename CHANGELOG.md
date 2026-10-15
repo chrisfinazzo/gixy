@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.56] - 2026-10-15
+
+### Added
+- nginx_cves: the five CVEs fixed in the nginx 1.30.6 / 1.31.7 security
+  releases (CVE-2026-15176, CVE-2026-93479, CVE-2026-95101, CVE-2026-97629,
+  CVE-2026-97205), with config-aware triggers for alias+rewrite, HTTP/3,
+  TLS session ticket key rotation, and SSI with AIO.
+
 ## [0.2.55] - 2026-09-29
 
 ### Fixed
