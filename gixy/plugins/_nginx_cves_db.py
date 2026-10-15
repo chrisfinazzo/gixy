@@ -790,6 +790,65 @@ def check_proxy_with_http2(root):
         yield proxy, enabling
 
 
+def check_alias_with_rewrite(root):
+    """Find ``alias`` directives with a ``rewrite`` in scope (CVE-2026-15176).
+
+    The overflow needs a location whose ``alias`` path substitution runs on
+    a URI already modified by ``rewrite``. Conservatively flag every
+    ``alias`` that has a ``rewrite`` in the same or any enclosing context;
+    rewrites in sibling locations cannot affect this alias and stay silent.
+
+    Args:
+        root: Root Block of the parsed config.
+
+    Yields:
+        Tuples of ``(alias, rewrite)``.
+    """
+    for alias in root.find_recursive("alias"):
+        rewrite = _effective_directive(alias.parent, "rewrite")
+        if rewrite is not None:
+            yield alias, rewrite
+
+
+def check_ssl_session_ticket_key(root):
+    """Yield every explicit ``ssl_session_ticket_key`` directive.
+
+    CVE-2026-97629 is triggered by TLS session ticket key rotation, which
+    in nginx means operator-supplied key files (the directive given more
+    than once rotates keys); auto-generated single keys are not rotated.
+
+    Args:
+        root: Root Block of the parsed config.
+
+    Yields:
+        Tuples of ``(directive, directive)``.
+    """
+    for key in root.find_recursive("ssl_session_ticket_key"):
+        yield key, key
+
+
+def check_ssi_with_aio(root):
+    """Find ``ssi on`` contexts where asynchronous I/O is also enabled.
+
+    CVE-2026-97205 is a use-after-free in ngx_http_ssi_module reachable
+    only when AIO is in effect for the same context (``aio on`` or
+    ``aio threads[=pool]``).
+
+    Args:
+        root: Root Block of the parsed config.
+
+    Yields:
+        Tuples of ``(ssi, aio)``.
+    """
+    for ssi in root.find_recursive("ssi"):
+        if not ssi.args or ssi.args[0] != "on":
+            continue
+        aio = _effective_directive(ssi.parent, "aio")
+        if aio is None or not aio.args or aio.args[0] == "off":
+            continue
+        yield ssi, aio
+
+
 # --------------------------------------------------------------------------
 # CVE records. Sorted newest first so future additions land at the top
 # and the historical tail stays stable across diffs.
@@ -812,6 +871,64 @@ def _advisory(cve_id):
 
 
 CVES = (
+    {
+        "id": "CVE-2026-15176",
+        "nickname": "",
+        "summary": "Buffer overflow when using alias with rewrite.",
+        "severity": gixy.severity.MEDIUM,
+        "advisory": _advisory("CVE-2026-15176"),
+        "vulnerable_oss": (((0, 1, 29), (1, 31, 6)),),
+        "fixed_oss": ("1.30.6", "1.31.7"),
+        "fixed_plus": (),
+        "config_check": check_alias_with_rewrite,
+    },
+    {
+        "id": "CVE-2026-93479",
+        "nickname": "",
+        "summary": "Buffer overflow when evaluating string expressions with variables.",
+        "severity": gixy.severity.MEDIUM,
+        "advisory": _advisory("CVE-2026-93479"),
+        "vulnerable_oss": (
+            ((1, 30, 0), (1, 30, 5)),
+            ((1, 31, 2), (1, 31, 6)),
+        ),
+        "fixed_oss": ("1.30.6", "1.31.7"),
+        "fixed_plus": (),
+        "config_check": None,
+    },
+    {
+        "id": "CVE-2026-95101",
+        "nickname": "",
+        "summary": "Request body injection in HTTP/3.",
+        "severity": gixy.severity.MEDIUM,
+        "advisory": _advisory("CVE-2026-95101"),
+        "vulnerable_oss": (((1, 25, 0), (1, 31, 6)),),
+        "fixed_oss": ("1.30.6", "1.31.7"),
+        "fixed_plus": (),
+        "config_check": check_http3_enabled,
+    },
+    {
+        "id": "CVE-2026-97629",
+        "nickname": "",
+        "summary": "Session forgery when using TLS session ticket key rotation.",
+        "severity": gixy.severity.MEDIUM,
+        "advisory": _advisory("CVE-2026-97629"),
+        "vulnerable_oss": (((1, 23, 2), (1, 31, 6)),),
+        "fixed_oss": ("1.30.6", "1.31.7"),
+        "fixed_plus": (),
+        "config_check": check_ssl_session_ticket_key,
+    },
+    {
+        "id": "CVE-2026-97205",
+        "nickname": "",
+        "summary": "Use-after-free in ngx_http_ssi_module when using AIO.",
+        "severity": gixy.severity.MEDIUM,
+        "advisory": _advisory("CVE-2026-97205"),
+        "vulnerable_oss": (((0, 8, 11), (1, 31, 6)),),
+        "fixed_oss": ("1.30.6", "1.31.7"),
+        "fixed_plus": (),
+        "config_check": check_ssi_with_aio,
+    },
     {
         "id": "CVE-2026-90439",
         "nickname": "",

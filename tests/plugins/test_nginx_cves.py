@@ -912,3 +912,124 @@ def test_cve_2026_90439_silent_on_fixed_versions():
 
 def test_cve_2026_90439_silent_before_vulnerable_range():
     assert "CVE-2026-90439" not in _cves_fired("1.29.1", _HTTP3_ON)
+
+
+# --------------------------------------------------------------------------
+# October 2026 release CVEs (nginx 1.30.6 / 1.31.7)
+# --------------------------------------------------------------------------
+
+_ALIAS_REWRITE = """events {}
+http {
+    server {
+        listen 80;
+        location /img/ {
+            rewrite ^/img/(.*)$ /static/$1 last;
+        }
+        location /static/ {
+            alias /srv/static/;
+        }
+        rewrite ^/old$ /new permanent;
+    }
+}
+"""
+
+_ALIAS_NO_REWRITE = """events {}
+http {
+    server {
+        listen 80;
+        location /static/ {
+            alias /srv/static/;
+        }
+    }
+}
+"""
+
+_TICKET_KEY = """events {}
+http {
+    server {
+        listen 443 ssl;
+        ssl_session_ticket_key /etc/nginx/ticket1.key;
+        ssl_session_ticket_key /etc/nginx/ticket2.key;
+    }
+}
+"""
+
+_SSI_AIO = """events {}
+http {
+    aio threads;
+    server {
+        listen 80;
+        location / {
+            ssi on;
+        }
+    }
+}
+"""
+
+_SSI_NO_AIO = """events {}
+http {
+    server {
+        listen 80;
+        location / {
+            ssi on;
+        }
+    }
+}
+"""
+
+
+def test_cve_2026_15176_fires_for_alias_with_rewrite_in_scope():
+    for version in ("1.30.5", "1.31.6"):
+        assert "CVE-2026-15176" in _cves_fired(version, _ALIAS_REWRITE), version
+
+
+def test_cve_2026_15176_silent_without_rewrite():
+    assert "CVE-2026-15176" not in _cves_fired("1.31.6", _ALIAS_NO_REWRITE)
+
+
+def test_cve_2026_15176_silent_on_fixed_versions():
+    for version in ("1.30.6", "1.31.7"):
+        assert "CVE-2026-15176" not in _cves_fired(version, _ALIAS_REWRITE), version
+
+
+def test_cve_2026_93479_binary_only_fires_in_both_branches():
+    for version in ("1.30.0", "1.30.5", "1.31.2", "1.31.6"):
+        assert "CVE-2026-93479" in _cves_fired(version, _PLAIN), version
+
+
+def test_cve_2026_93479_silent_outside_ranges():
+    for version in ("1.29.9", "1.31.1", "1.30.6", "1.31.7"):
+        assert "CVE-2026-93479" not in _cves_fired(version, _PLAIN), version
+
+
+def test_cve_2026_95101_fires_with_http3():
+    for version in ("1.25.0", "1.30.5", "1.31.6"):
+        assert "CVE-2026-95101" in _cves_fired(version, _HTTP3_ON), version
+
+
+def test_cve_2026_95101_silent_without_http3_and_on_fixed():
+    assert "CVE-2026-95101" not in _cves_fired("1.31.6", _PLAIN)
+    for version in ("1.30.6", "1.31.7"):
+        assert "CVE-2026-95101" not in _cves_fired(version, _HTTP3_ON), version
+
+
+def test_cve_2026_97629_fires_with_ticket_key_rotation():
+    for version in ("1.23.2", "1.30.5", "1.31.6"):
+        assert "CVE-2026-97629" in _cves_fired(version, _TICKET_KEY), version
+
+
+def test_cve_2026_97629_silent_without_ticket_keys_and_on_fixed():
+    assert "CVE-2026-97629" not in _cves_fired("1.31.6", _PLAIN)
+    for version in ("1.30.6", "1.31.7"):
+        assert "CVE-2026-97629" not in _cves_fired(version, _TICKET_KEY), version
+
+
+def test_cve_2026_97205_fires_for_ssi_with_inherited_aio():
+    for version in ("1.30.5", "1.31.6"):
+        assert "CVE-2026-97205" in _cves_fired(version, _SSI_AIO), version
+
+
+def test_cve_2026_97205_silent_without_aio_and_on_fixed():
+    assert "CVE-2026-97205" not in _cves_fired("1.31.6", _SSI_NO_AIO)
+    for version in ("1.30.6", "1.31.7"):
+        assert "CVE-2026-97205" not in _cves_fired(version, _SSI_AIO), version
