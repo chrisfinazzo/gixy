@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.57] - 2026-10-21
+
 ### Fixed
 - **Checkstyle output**: Group each source file once across multiple audited
   roots, including roots previously encountered as includes, while preserving
