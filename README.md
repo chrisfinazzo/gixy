@@ -7,10 +7,10 @@ GIXY
 [![Your feedback is greatly appreciated](https://img.shields.io/maintenance/yes/2026.svg?style=flat-square)](https://github.com/dvershinin/gixy/issues/new)
 [![GitHub issues](https://img.shields.io/github/issues/dvershinin/gixy.svg?style=flat-square)](https://github.com/dvershinin/gixy/issues)
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/dvershinin/gixy.svg?style=flat-square)](https://github.com/dvershinin/gixy/pulls)
-[![NGINX Extras](https://img.shields.io/badge/NGINX%20Extras-Subscribe-blue?logo=nginx&style=flat-square)](https://nginx-extras.getpagespeed.com/)
+[![NGINX Extras](https://img.shields.io/badge/NGINX%20Extras-Subscribe-blue?logo=nginx&style=flat-square)](https://www.getpagespeed.com/nginx-extras)
 
 > [!NOTE]
-> Keep NGINX secure and up-to-date with maintained modules via [NGINX Extras RPM repository by GetPageSpeed](https://nginx-extras.getpagespeed.com/).
+> Keep NGINX secure and up-to-date with maintained modules via [NGINX Extras packages for RHEL, Debian, and Ubuntu by GetPageSpeed](https://www.getpagespeed.com/nginx-extras).
 
 # Overview
 <img align="right" width="192" height="192" src="docs/gixy.png">

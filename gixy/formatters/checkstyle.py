@@ -54,12 +54,8 @@ class CheckstyleFormatter(BaseFormatter):
         root = Element("checkstyle", version="8.0")
 
         for path, issues in reports.items():
-            if not issues:
-                # Include empty file elements for completeness
-                SubElement(root, "file", name=path)
-                continue
-
-            file_elem = SubElement(root, "file", name=path)
+            # A CLI root may already have appeared as an included source.
+            self._get_or_create_file_element(root, path)
 
             for issue in issues:
                 # Extract line number, defaulting to 1 if not available

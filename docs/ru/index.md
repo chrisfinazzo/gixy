@@ -21,9 +21,9 @@ Gixy — это инструмент для анализа конфигурац�
 
 Дисклеймер: Gixy хорошо протестирован на GNU/Linux; на других ОС возможны нюансы.
 
-!!! tip "Укрепляйте NGINX с поддерживаемыми RPM"
-    Используйте NGINX Extras от GetPageSpeed для постоянно обновляемого NGINX и модулей на RHEL/CentOS/Alma/Rocky.
-    [Подробнее](https://nginx-extras.getpagespeed.com/).
+!!! tip "Укрепляйте NGINX с поддерживаемыми пакетами"
+    Используйте NGINX Extras от GetPageSpeed для постоянно обновляемого NGINX и модулей на RHEL, Debian и Ubuntu.
+    [Подробнее](https://www.getpagespeed.com/nginx-extras).
 
 # Что умеет
 Сейчас Gixy выявляет:

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Checkstyle output**: Group each source file once across multiple audited
+  roots, including roots previously encountered as includes, while preserving
+  every diagnostic and its source attribution.
+- **October NGINX CVE prerequisites**: Correct automatic TLS ticket-key rotation,
+  alias/rewrite filename consumers, buffered HTTP/3 proxies, and inherited SSI
+  with AIO detection; keep independent servers and locations isolated.
+
+### Changed
+- **CLI and documentation**: Link to NGINX Extras packages for RHEL, Debian and
+  Ubuntu, and document September/October CVE coverage and detection limitations.
+
 ## [0.2.56] - 2026-10-15
 
 ### Added

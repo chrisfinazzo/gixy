@@ -21,9 +21,9 @@ Gixy 是一款用于分析 Nginx 配置的工具。
 
 声明：Gixy 在 GNU/Linux 上经过充分测试；其他系统可能存在少量差异。
 
-!!! tip "加固 NGINX，使用维护的 RPM"
-    使用 GetPageSpeed 提供的 NGINX Extras 在 RHEL/CentOS/Alma/Rocky 上获取持续更新的 NGINX 与模块。
-    [了解更多](https://nginx-extras.getpagespeed.com/).
+!!! tip "加固 NGINX，使用持续维护的软件包"
+    使用 GetPageSpeed 提供的 NGINX Extras 在 RHEL、Debian 和 Ubuntu 上获取持续更新的 NGINX 与模块。
+    [了解更多](https://www.getpagespeed.com/nginx-extras).
 
 # 功能
 Gixy 目前可以发现：

@@ -8,7 +8,7 @@ import pytest
 
 @pytest.mark.parametrize("flag", ["-v", "--version", "--help"])
 def test_cli_footer_has_separate_url_and_trailing_line_breaks(flag):
-    completed = subprocess.run(
+    completed = subprocess.run(  # noqa: UP022 - capture_output requires Python 3.7+
         [sys.executable, "-m", "gixy.cli.main", flag],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -18,6 +18,6 @@ def test_cli_footer_has_separate_url_and_trailing_line_breaks(flag):
     assert completed.returncode == 0
     assert completed.stderr == ""
     assert completed.stdout.endswith(
-        "\n\nGet curated NGINX RPMs (NGINX Extras by GetPageSpeed):\n"
-        "https://nginx-extras.getpagespeed.com/\n\n"
+        "\n\nNGINX Extras by GetPageSpeed: packages for RHEL, Debian, and Ubuntu\n"
+        "https://www.getpagespeed.com/nginx-extras\n\n"
     )

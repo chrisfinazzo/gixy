@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 """Check for Python 3.7+ patterns that break Python 3.6 compatibility."""
 
+import ast
 import os
 import re
 import sys
 from pathlib import Path
 
 # Patterns that require Python 3.7+
-# Format: (regex, message, skip_in_strings)
+# Format: (regex, message)
 INCOMPATIBLE_PATTERNS = [
     # subprocess.run text=True requires 3.7+ (use universal_newlines=True)
     (
@@ -21,8 +22,6 @@ INCOMPATIBLE_PATTERNS = [
     ),
     # dataclasses module requires 3.7+ (if imported at module level)
     (r"^from dataclasses import", "dataclasses module requires Python 3.7+"),
-    # := walrus operator requires 3.8+ (but not in strings/comments)
-    (r"(?<!['\"]):\s*=(?!['\"])", "Walrus operator := requires Python 3.8+"),
     # positional-only params (/) require 3.8+
     (r"def \w+\([^)]*,\s*/", "Positional-only parameters (/) require Python 3.8+"),
 ]
@@ -56,7 +55,28 @@ def check_file(filepath: str) -> list:
     issues = []
     try:
         with filepath.open(encoding="utf-8") as f:
-            lines = f.read().splitlines()
+            source = f.read()
+        try:
+            tree = ast.parse(source, filename=str(filepath))
+        except SyntaxError as exc:
+            return [
+                (
+                    filepath,
+                    exc.lineno or 1,
+                    "Unable to parse source on this interpreter: " + exc.msg,
+                )
+            ]
+
+        for node in ast.walk(tree):
+            # NamedExpr is absent from older ast modules. Walking the parsed
+            # tree also catches expressions inside f-strings, which tokenize
+            # treats as a single string on Python versions before 3.12.
+            if type(node).__name__ == "NamedExpr":
+                issues.append(
+                    (filepath, node.lineno, "Walrus operator := requires Python 3.8+")
+                )
+
+        lines = source.splitlines()
 
         for pattern, message in INCOMPATIBLE_PATTERNS:
             for i, line in enumerate(lines, 1):

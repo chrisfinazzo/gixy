@@ -927,6 +927,7 @@ http {
         }
         location /static/ {
             alias /srv/static/;
+            set $path $request_filename;
         }
         rewrite ^/old$ /new permanent;
     }
@@ -944,12 +945,11 @@ http {
 }
 """
 
-_TICKET_KEY = """events {}
+_AUTOMATIC_TICKETS = """events {}
 http {
     server {
         listen 443 ssl;
-        ssl_session_ticket_key /etc/nginx/ticket1.key;
-        ssl_session_ticket_key /etc/nginx/ticket2.key;
+        ssl_session_cache shared:TLS:10m;
     }
 }
 """
@@ -1002,26 +1002,38 @@ def test_cve_2026_93479_silent_outside_ranges():
         assert "CVE-2026-93479" not in _cves_fired(version, _PLAIN), version
 
 
+_HTTP3_BUFFERED_PROXY = """events {}
+http {
+    server {
+        listen 443 quic;
+        location / { proxy_pass http://backend; }
+    }
+}
+"""
+
+
 def test_cve_2026_95101_fires_with_http3():
     for version in ("1.25.0", "1.30.5", "1.31.6"):
-        assert "CVE-2026-95101" in _cves_fired(version, _HTTP3_ON), version
+        assert "CVE-2026-95101" in _cves_fired(version, _HTTP3_BUFFERED_PROXY), version
 
 
 def test_cve_2026_95101_silent_without_http3_and_on_fixed():
     assert "CVE-2026-95101" not in _cves_fired("1.31.6", _PLAIN)
     for version in ("1.30.6", "1.31.7"):
-        assert "CVE-2026-95101" not in _cves_fired(version, _HTTP3_ON), version
+        assert "CVE-2026-95101" not in _cves_fired(
+            version, _HTTP3_BUFFERED_PROXY
+        ), version
 
 
 def test_cve_2026_97629_fires_with_ticket_key_rotation():
     for version in ("1.23.2", "1.30.5", "1.31.6"):
-        assert "CVE-2026-97629" in _cves_fired(version, _TICKET_KEY), version
+        assert "CVE-2026-97629" in _cves_fired(version, _AUTOMATIC_TICKETS), version
 
 
-def test_cve_2026_97629_silent_without_ticket_keys_and_on_fixed():
+def test_cve_2026_97629_silent_without_automatic_rotation_and_on_fixed():
     assert "CVE-2026-97629" not in _cves_fired("1.31.6", _PLAIN)
     for version in ("1.30.6", "1.31.7"):
-        assert "CVE-2026-97629" not in _cves_fired(version, _TICKET_KEY), version
+        assert "CVE-2026-97629" not in _cves_fired(version, _AUTOMATIC_TICKETS), version
 
 
 def test_cve_2026_97205_fires_for_ssi_with_inherited_aio():

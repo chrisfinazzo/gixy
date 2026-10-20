@@ -64,7 +64,11 @@ def test_cli_help_contains_cta(monkeypatch, capsys):
     with pytest.raises(SystemExit):
         main()
     captured = capsys.readouterr()
-    assert "nginx-extras.getpagespeed.com" in captured.out
+    assert (
+        "NGINX Extras by GetPageSpeed: packages for RHEL, Debian, and Ubuntu"
+        in captured.out
+    )
+    assert "https://www.getpagespeed.com/nginx-extras" in captured.out
 
 
 def test_cli_main_runs_with_plugin_options(monkeypatch):

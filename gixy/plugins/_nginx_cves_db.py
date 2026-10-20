@@ -790,63 +790,210 @@ def check_proxy_with_http2(root):
         yield proxy, enabling
 
 
-def check_alias_with_rewrite(root):
-    """Find ``alias`` directives with a ``rewrite`` in scope (CVE-2026-15176).
-
-    The overflow needs a location whose ``alias`` path substitution runs on
-    a URI already modified by ``rewrite``. Conservatively flag every
-    ``alias`` that has a ``rewrite`` in the same or any enclosing context;
-    rewrites in sibling locations cannot affect this alias and stay silent.
+def _effective_directives(block, name):
+    """Return all directives named ``name`` from the nearest defining scope.
 
     Args:
-        root: Root Block of the parsed config.
+        block: Request context whose inherited settings are inspected.
+        name: Directive name to resolve.
+
+    Returns:
+        List of directives, empty when no scope defines the setting.
+    """
+    current = block
+    while current is not None:
+        directives = current.find(name, flat=False)
+        if directives:
+            return directives
+        current = current.parent
+    return []
+
+
+def _http_servers(root):
+    """Yield HTTP servers without mixing stream or mail configuration.
+
+    Args:
+        root: Root Block of the parsed configuration.
 
     Yields:
-        Tuples of ``(alias, rewrite)``.
+        Direct server blocks inside each HTTP block.
     """
-    for alias in root.find_recursive("alias"):
-        rewrite = _effective_directive(alias.parent, "rewrite")
-        if rewrite is not None:
-            yield alias, rewrite
+    for http in root.find("http", flat=False):
+        yield from http.find("server", flat=False)
+
+
+def _request_contexts(server):
+    """Yield a server and its nested request configuration contexts.
+
+    Args:
+        server: HTTP server or nested request block.
+
+    Yields:
+        Server, location and conditional blocks in configuration order.
+    """
+    yield server
+    for child in server.children:
+        if child.is_block and child.name in ("location", "if"):
+            yield from _request_contexts(child)
+
+
+def _uses_request_filename(context):
+    """Check direct filename references in applicable consumers.
+
+    Args:
+        context: Request block whose consumers and logs are inspected.
+
+    Returns:
+        True for a set/return expression or an active named access-log format
+        using request_filename. Arbitrary variable indirection is not modeled.
+    """
+    for name in ("set", "return"):
+        for consumer in _effective_directives(context, name):
+            if any("request_filename" in _variable_refs(arg) for arg in consumer.args):
+                return True
+
+    logs = _effective_directives(context, "access_log")
+    # NGINX's off flag cancels every log at this level, in either order.
+    if any(log.args and log.args[0] == "off" for log in logs):
+        return False
+
+    http = next(parent for parent in context.parents if parent.name == "http")
+    formats = {}
+    for directive in http.find("log_format"):
+        if directive.args:
+            # NGINX compares format names in order, folding only ASCII case.
+            name = directive.args[0].encode("utf-8").lower()
+            formats.setdefault(name, directive)
+    for log in logs:
+        if len(log.args) < 2:
+            continue
+        log_format = formats.get(log.args[1].encode("utf-8").lower())
+        if log_format is not None and any(
+            "request_filename" in _variable_refs(arg) for arg in log_format.args[1:]
+        ):
+            return True
+    return False
+
+
+def _effective_alias(context):
+    """Resolve the shared root/alias setting, returning only an effective alias.
+
+    Args:
+        context: Request block whose path mapping is inspected.
+
+    Returns:
+        The closest alias directive, or None when root masks it or no alias exists.
+    """
+    current = context
+    while current is not None:
+        for directive in current.children:
+            if directive.name == "alias":
+                return directive
+            if directive.name == "root":
+                return None
+        current = current.parent
+    return None
+
+
+def check_alias_with_rewrite(root):
+    """Find alias, rewrite and filename-consumer prerequisites for CVE-2026-15176.
+
+    Args:
+        root: Root Block of the parsed nginx config tree.
+
+    Yields:
+        Unique ``(alias, rewrite)`` pairs with an applicable direct/braced
+        request_filename consumer. Sibling contexts never contribute settings.
+    """
+    seen = set()
+    for server in _http_servers(root):
+        for context in _request_contexts(server):
+            alias = _effective_alias(context)
+            rewrite = _effective_directive(context, "rewrite")
+            if alias is None or rewrite is None:
+                continue
+            pair = (alias, rewrite)
+            if pair not in seen and _uses_request_filename(context):
+                seen.add(pair)
+                yield pair
 
 
 def check_ssl_session_ticket_key(root):
-    """Yield every explicit ``ssl_session_ticket_key`` directive.
+    """Find automatic TLS session ticket rotation for CVE-2026-97629.
 
-    CVE-2026-97629 is triggered by TLS session ticket key rotation, which
-    in nginx means operator-supplied key files (the directive given more
-    than once rotates keys); auto-generated single keys are not rotated.
+    Explicit key files exclude automatic rotation. Tickets default to on;
+    the effective shared cache and ticket settings belong to one TLS server.
 
     Args:
         root: Root Block of the parsed config.
 
     Yields:
-        Tuples of ``(directive, directive)``.
+        ``(effective_shared_cache, tls_server)`` pairs.
     """
-    for key in root.find_recursive("ssl_session_ticket_key"):
-        yield key, key
+    for server in _http_servers(root):
+        tls = any("ssl" in listen.args for listen in server.find("listen"))
+        ssl = _effective_directive(server, "ssl")
+        if not tls and not (ssl is not None and ssl.args == ["on"]):
+            continue
+        cache = _effective_directive(server, "ssl_session_cache")
+        if cache is None or not any(arg.startswith("shared:") for arg in cache.args):
+            continue
+        tickets = _effective_directive(server, "ssl_session_tickets")
+        if tickets is not None and tickets.args == ["off"]:
+            continue
+        if _effective_directive(server, "ssl_session_ticket_key") is None:
+            yield cache, server
+
+
+def check_http3_buffered_proxy(root):
+    """Find buffered proxies served over HTTP/3 for CVE-2026-95101.
+
+    Args:
+        root: Root Block of the parsed config.
+
+    Yields:
+        ``(proxy_pass, quic_listener)`` pairs within the same HTTP server.
+    """
+    for server in _http_servers(root):
+        listener = next(
+            (listen for listen in server.find("listen") if "quic" in listen.args), None
+        )
+        http3 = _effective_directive(server, "http3")
+        if listener is None or (http3 is not None and http3.args == ["off"]):
+            continue
+        for context in _request_contexts(server):
+            buffering = _effective_directive(context, "proxy_request_buffering")
+            if buffering is not None and buffering.args == ["off"]:
+                continue
+            for proxy in context.find("proxy_pass", flat=False):
+                yield proxy, listener
 
 
 def check_ssi_with_aio(root):
-    """Find ``ssi on`` contexts where asynchronous I/O is also enabled.
+    """Find effective SSI and AIO prerequisites for CVE-2026-97205.
 
-    CVE-2026-97205 is a use-after-free in ngx_http_ssi_module reachable
-    only when AIO is in effect for the same context (``aio on`` or
-    ``aio threads[=pool]``).
+    Static configuration cannot establish whether SSI page contents contain
+    the include virtual commands needed to trigger the vulnerability.
 
     Args:
         root: Root Block of the parsed config.
 
     Yields:
-        Tuples of ``(ssi, aio)``.
+        Unique ``(effective_ssi, effective_aio)`` pairs in request contexts.
     """
-    for ssi in root.find_recursive("ssi"):
-        if not ssi.args or ssi.args[0] != "on":
-            continue
-        aio = _effective_directive(ssi.parent, "aio")
-        if aio is None or not aio.args or aio.args[0] == "off":
-            continue
-        yield ssi, aio
+    seen = set()
+    for server in _http_servers(root):
+        for context in _request_contexts(server):
+            ssi = _effective_directive(context, "ssi")
+            aio = _effective_directive(context, "aio")
+            if ssi is None or ssi.args != ["on"]:
+                continue
+            if aio is None or not aio.args or aio.args[0] == "off":
+                continue
+            pair = (ssi, aio)
+            if pair not in seen:
+                seen.add(pair)
+                yield pair
 
 
 # --------------------------------------------------------------------------
@@ -894,6 +1041,8 @@ CVES = (
         ),
         "fixed_oss": ("1.30.6", "1.31.7"),
         "fixed_plus": (),
+        # Alternate non-cacheable-variable paths cannot be fully modeled.
+        # Keep version-based advice, not a claim of exploitable configuration.
         "config_check": None,
     },
     {
@@ -905,7 +1054,7 @@ CVES = (
         "vulnerable_oss": (((1, 25, 0), (1, 31, 6)),),
         "fixed_oss": ("1.30.6", "1.31.7"),
         "fixed_plus": (),
-        "config_check": check_http3_enabled,
+        "config_check": check_http3_buffered_proxy,
     },
     {
         "id": "CVE-2026-97629",
