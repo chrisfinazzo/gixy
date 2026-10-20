@@ -69,10 +69,9 @@ class CheckstyleFormatter(BaseFormatter):
                 # This handles cases where the issue is in an included file
                 issue_file = location.get("file") or path
 
-                # Update file element name if issue is from included file
-                if issue_file != path:
-                    # Find or create file element for the actual file
-                    file_elem = self._get_or_create_file_element(root, issue_file)
+                # Select the source file for every issue, including a return
+                # to the main file after an issue from an included file.
+                file_elem = self._get_or_create_file_element(root, issue_file)
 
                 severity = SEVERITY_MAP.get(
                     issue.get("severity", "UNSPECIFIED"), "info"
