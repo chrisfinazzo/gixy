@@ -29,4 +29,4 @@ add_header Content-Type "application/octet-stream";
 
 Этот паттерн корректен, потому что `*_hide_header` (например, `proxy_hide_header`, `fastcgi_hide_header`, `uwsgi_hide_header`, `scgi_hide_header`, `grpc_hide_header`) блокирует прохождение `Content-Type` от бэкенда, а `add_header` затем устанавливает новый, избегая дублей.
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

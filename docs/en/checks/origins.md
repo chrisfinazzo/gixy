@@ -63,4 +63,4 @@ add_header Access-Control-Allow-Origin $allow_origin always;
 
 Gixy now understands this pattern and will analyze regex map keys feeding `Access-Control-Allow-Origin`.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

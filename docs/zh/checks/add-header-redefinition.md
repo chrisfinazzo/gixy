@@ -75,7 +75,7 @@ new-headers
 `add_header` 时仍不会继承父级响应头；`off` 则完全关闭继承。响应尾字段遵循相同
 规则，应使用 `add_trailer_inherit merge;`。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"
 
 ### 命令行与配置选项
 

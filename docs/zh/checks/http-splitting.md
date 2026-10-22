@@ -58,4 +58,4 @@ OK
 - 在排除范围中禁止换行符，例如使用 `/some/(?<action>[^/\s]+)` 替代 `/some/(?<action>[^/]+`；
 - 也可以考虑对 `$uri` 进行校验（仅在你明确了解其影响时）。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

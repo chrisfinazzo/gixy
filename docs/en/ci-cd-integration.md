@@ -173,4 +173,4 @@ Gixy severities map to Checkstyle severities as follows:
 
 Configure your CI/CD tool to fail on specific severity levels as needed.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

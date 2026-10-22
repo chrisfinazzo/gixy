@@ -132,4 +132,4 @@ Gixy's rich console output formats file locations in a terminal-compatible forma
 
 Most modern terminals (iTerm2, Windows Terminal, VS Code integrated terminal) support clicking these paths to jump directly to the file and line.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

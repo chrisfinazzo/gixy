@@ -58,4 +58,4 @@ location ~ \.php$ {
 
 这样才能只匹配以 `.php` 结尾的 URL。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

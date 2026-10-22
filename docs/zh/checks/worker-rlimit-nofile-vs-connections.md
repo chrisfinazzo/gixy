@@ -25,4 +25,4 @@ _Gixy 检查 ID：`worker_rlimit_nofile_vs_connections`_
 
 通过确保 FD 限制至少是 `worker_connections` 数量的两倍，您可以满足这些不同操作模式的最低 FD 要求。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

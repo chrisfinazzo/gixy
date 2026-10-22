@@ -46,4 +46,4 @@ geo $block_client {
 
 Явные default делают поведение предсказуемым и предотвращают случайные «дыры» при появлении новых ключей или необычных входных данных.
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

@@ -42,4 +42,4 @@ location /files/ {
 
 确认所选目录只包含允许公开访问的文件，并为私有位置保留明确的访问控制。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

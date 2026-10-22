@@ -18,4 +18,4 @@ _Gixy Check ID: `if_is_evil`_
 
 Иногда имеет смысл использовать встроенные языки (например, [embedded perl](https://nginx.org/en/docs/http/ngx_http_perl_module.html) или [Lua](https://nginx-extras.getpagespeed.com/lua-scripting/)).
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

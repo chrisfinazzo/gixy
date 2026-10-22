@@ -55,4 +55,4 @@ location ~ \.php$ {
 
 Так совпадают только пути, оканчивающиеся на `.php`.
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

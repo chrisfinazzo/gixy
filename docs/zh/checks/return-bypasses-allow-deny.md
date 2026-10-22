@@ -31,4 +31,4 @@ server {
 - 若必须使用 `return`，确保它处于同一受控上下文，否则显式在该位置添加相同的访问控制；
 - 通过 `satisfy` 与 `auth_*` 等机制组合时，确认短路顺序不会绕过安全检查。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

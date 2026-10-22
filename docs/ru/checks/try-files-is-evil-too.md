@@ -62,4 +62,4 @@ location / {
 - [Документация nginx: open_file_cache](https://nginx.org/ru/docs/http/ngx_http_core_module.html#open_file_cache)
 - [try_files is evil too](https://www.getpagespeed.com/server-setup/nginx-try_files-is-evil-too)
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

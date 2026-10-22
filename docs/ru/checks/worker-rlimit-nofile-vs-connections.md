@@ -14,4 +14,4 @@ _Gixy Check ID: `worker_rlimit_nofile_vs_connections`_
 
 - Установите `worker_rlimit_nofile` как минимум в два раза больше значения `worker_connections`.
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

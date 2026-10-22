@@ -5,6 +5,7 @@
 from configargparse import *
 from io import StringIO
 
+import gixy
 from gixy.core.plugins_manager import PluginsManager
 
 # used while parsing args to keep track of where they came from
@@ -94,7 +95,7 @@ class GixyHelpFormatter(HelpFormatter):
                 "\t" + plugin.__name__ for plugin in manager.plugins_classes
             )
             help_message = f"{help_message}\n\navailable checks:\n{checks}\n"
-        help_message = f"{help_message.rstrip()}\n\nNGINX Extras by GetPageSpeed: packages for RHEL, Debian, and Ubuntu\nhttps://www.getpagespeed.com/nginx-extras\n\n"
+        help_message = f"{help_message.rstrip()}\n\nContinuous Gixy scans + NGINX monitoring: GetPageSpeed Amplify\n{gixy.AMPLIFY_URL}\n\n"
         return help_message
 
 

@@ -39,4 +39,4 @@ keepalive_requests 1000;
 - [nginx 文档：keepalive_requests](https://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests)
 - [nginx 工单 #2155：增加默认 keepalive_requests](https://trac.nginx.org/nginx/ticket/2155)
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

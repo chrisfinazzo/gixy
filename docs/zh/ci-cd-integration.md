@@ -173,4 +173,4 @@ Gixy 严重级别映射到 Checkstyle 严重级别如下：
 
 根据需要配置您的 CI/CD 工具在特定严重级别时中断构建。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

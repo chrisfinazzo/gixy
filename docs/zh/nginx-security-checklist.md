@@ -365,4 +365,4 @@ gixy /etc/nginx/nginx.conf --format json > audit-results.json
 - [Gixy 文档](index.md) — 完整的自动化安全检查列表
 - [在线 NGINX 检查器](https://www.getpagespeed.com/check-nginx-config) — 粘贴您的配置进行即时分析
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

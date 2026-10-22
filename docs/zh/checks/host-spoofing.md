@@ -39,4 +39,4 @@ location @app {
 - [Host of Troubles Vulnerabilities](https://hostoftroubles.com/)
 - [Practical HTTP Host header attacks](http://www.skeletonscribe.net/2013/05/practical-http-host-header-attacks.html)
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

@@ -46,4 +46,4 @@ geo $block_client {
 
 显式默认值让行为更可预测，并避免在新增键或输入异常时出现意外的允许/拒绝空洞。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

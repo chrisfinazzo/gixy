@@ -55,4 +55,4 @@ http {
 
 - NGINX `listen` 指令: https://nginx.org/en/docs/http/ngx_http_core_module.html#listen
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

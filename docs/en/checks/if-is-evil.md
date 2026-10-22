@@ -162,4 +162,4 @@ If you read all of the above and still want to use if:
 
 You were warned.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

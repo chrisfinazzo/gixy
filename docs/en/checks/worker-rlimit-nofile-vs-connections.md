@@ -26,4 +26,4 @@ Why are additional FDs necessary?
 
 By ensuring the FD limit is at least twice the number of `worker_connections`, you accommodate the minimum FD requirements across these different modes of operation.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

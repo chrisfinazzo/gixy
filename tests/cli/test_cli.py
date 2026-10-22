@@ -65,10 +65,9 @@ def test_cli_help_contains_cta(monkeypatch, capsys):
         main()
     captured = capsys.readouterr()
     assert (
-        "NGINX Extras by GetPageSpeed: packages for RHEL, Debian, and Ubuntu"
-        in captured.out
+        "Continuous Gixy scans + NGINX monitoring: GetPageSpeed Amplify" in captured.out
     )
-    assert "https://www.getpagespeed.com/nginx-extras" in captured.out
+    assert "https://gixy.org/guides/nginx-monitoring-amplify" in captured.out
 
 
 def test_cli_main_runs_with_plugin_options(monkeypatch):

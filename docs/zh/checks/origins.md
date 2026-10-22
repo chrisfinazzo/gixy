@@ -62,4 +62,4 @@ add_header Access-Control-Allow-Origin $allow_origin always;
 
 Gixy 已能识别该模式，并会分析用于设置 `Access-Control-Allow-Origin` 的正则 `map` 键。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

@@ -102,7 +102,7 @@ if RICH_AVAILABLE:
             self._render_summary(buffer_console, stats)
 
             # Footer with tip
-            self._render_footer(buffer_console)
+            self._render_footer(buffer_console, reports)
 
             return string_buffer.getvalue()
 
@@ -306,14 +306,33 @@ if RICH_AVAILABLE:
                 )
             )
 
-        def _render_footer(self, console):
-            """Render the footer with tips."""
+        def _render_footer(self, console, reports):
+            """Render the footer with a tip matching the findings.
+
+            Args:
+                console: Rich console to print to.
+                reports: Mapping of config path to its list of issue dicts.
+            """
+            has_cves = any(
+                issue["plugin"] == "nginx_cves"
+                for issues in reports.values()
+                for issue in issues
+            )
+            if has_cves:
+                tip = (
+                    "Vulnerable NGINX? Get patched, maintained builds: "
+                    f"[link={gixy.NGINX_EXTRAS_URL}]"
+                    "[blue underline]getpagespeed.com/nginx-extras[/blue underline]"
+                    "[/link]"
+                )
+            else:
+                tip = (
+                    "Run Gixy continuously on every server: "
+                    f"[link={gixy.AMPLIFY_URL}]"
+                    "[blue underline]gixy.org/guides/nginx-monitoring-amplify"
+                    "[/blue underline][/link]"
+                )
             console.print(
-                Text.from_markup(
-                    "\n[dim]💡 Need pre-built NGINX modules? "
-                    "[link=https://www.getpagespeed.com/repo-subscribe]"
-                    "[blue underline]getpagespeed.com/repo-subscribe[/blue underline]"
-                    "[/link][/dim]"
-                ),
+                Text.from_markup(f"\n[dim]💡 {tip}[/dim]"),
                 end="",
             )

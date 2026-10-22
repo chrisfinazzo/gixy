@@ -42,4 +42,4 @@ resolver_timeout 5s;
 - Отравленный кэш может незаметно уводить трафик на произвольные upstream
 - Локальный резолвер (например, `unbound`, `dnsmasq`) на loopback значительно снижает риск
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

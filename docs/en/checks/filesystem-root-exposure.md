@@ -44,4 +44,4 @@ location /files/ {
 Confirm that the selected directory contains only files intended for public access,
 and retain explicit access controls for private locations.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

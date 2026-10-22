@@ -34,4 +34,4 @@ location /i {
 - 确保其上级前缀位置以目录分隔符结尾；
 - 如果只想映射单个文件，确保位置以 `=` 开头，例如使用 `=/i.gif` 而不是 `/i.gif`。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

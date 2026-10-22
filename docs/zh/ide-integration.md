@@ -105,4 +105,4 @@ Gixy 的富终端输出以终端兼容格式显示文件位置：
 
 大多数现代终端（iTerm2、Windows Terminal、VS Code 集成终端）支持点击这些路径直接跳转到文件和行。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

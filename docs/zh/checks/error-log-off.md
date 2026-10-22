@@ -23,4 +23,4 @@ error_log /dev/null emerg;
 因此，在启动或重新加载配置时，NGINX 仍可能将错误写入默认错误日志位置（通常是 `/var/log/nginx/error.log`），直到验证完成。
 若要永久更改默认日志目录，可在启动 NGINX 时使用 `--error-log-path`（或 `-e`）选项。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

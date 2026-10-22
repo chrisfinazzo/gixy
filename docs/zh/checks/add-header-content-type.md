@@ -29,4 +29,4 @@ add_header Content-Type "application/octet-stream";
 
 此模式是有效的，因为 `*_hide_header`（例如 `proxy_hide_header`、`fastcgi_hide_header`、`uwsgi_hide_header`、`scgi_hide_header` 或 `grpc_hide_header`）会阻止后端返回的 `Content-Type` 透传，然后由 `add_header` 重新设置一个新的，从而避免重复响应头。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

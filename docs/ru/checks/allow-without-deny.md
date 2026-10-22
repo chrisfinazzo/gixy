@@ -18,7 +18,7 @@ location / {
 }
 ```
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"
 
 ## Хороший пример
 

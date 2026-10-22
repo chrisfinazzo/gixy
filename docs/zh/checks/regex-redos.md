@@ -63,4 +63,4 @@ ReDoctor 是可选依赖；未安装它时，普通 Gixy 仍使用内置的快�
 结果时会回退到默认结构检查。所有分析均在本地进行，并禁用 runtime recall，
 因此不会用 Python 回溯引擎执行 nginx 正则。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

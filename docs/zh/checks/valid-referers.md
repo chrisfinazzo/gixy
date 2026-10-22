@@ -15,4 +15,4 @@ _Gixy Check ID: `valid_referrers`_
 
 建议谨慎使用 `none`，并明确列举允许来源或采用更严格的匹配方式。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

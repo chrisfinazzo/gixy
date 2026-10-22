@@ -39,4 +39,4 @@ keepalive_requests 1000;
 - [Документация nginx: keepalive_requests](https://nginx.org/ru/docs/http/ngx_http_core_module.html#keepalive_requests)
 - [Тикет nginx #2155: Увеличение keepalive_requests по умолчанию](https://trac.nginx.org/nginx/ticket/2155)
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

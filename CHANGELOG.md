@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **CLI and documentation**: Point to GetPageSpeed Amplify for continuous Gixy
+  scans across every host; the rich console footer suggests NGINX Extras
+  builds when the `nginx_cves` check finds a vulnerable NGINX version.
+
 ## [0.2.57] - 2026-10-21
 
 ### Fixed

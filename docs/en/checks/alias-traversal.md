@@ -35,4 +35,4 @@ It's pretty simple:
   - make sure that the parent prefixed location ends with directory separator.
   - or if you want to map a single file make sure the location starts with a `=`, e.g. `=/i.gif` instead of `/i.gif`.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

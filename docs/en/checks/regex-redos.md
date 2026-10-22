@@ -135,4 +135,4 @@ Python's backtracking regex engine.
 - [Wikipedia: ReDoS](https://en.wikipedia.org/wiki/ReDoS)
 - [Cloudflare: Details of the Cloudflare outage on July 2, 2019](https://blog.cloudflare.com/details-of-the-cloudflare-outage-on-july-2-2019/) - a famous ReDoS incident
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

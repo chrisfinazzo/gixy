@@ -65,4 +65,4 @@ location ~* ^/internal-proxy/(?<proxy_proto>https?)/(?<proxy_host>.*?)/(?<proxy_
   * 若可代理的主机集合有限（例如仅 S3 等），应将其硬编码并通过 `map` 等方式选择；
   * 若无法枚举所有可能主机，应对地址进行签名校验。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

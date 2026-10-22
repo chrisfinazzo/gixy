@@ -365,4 +365,4 @@ gixy /etc/nginx/nginx.conf --format json > audit-results.json
 - [Документация Gixy](index.md) — Полный список автоматических проверок
 - [Онлайн-проверка NGINX](https://www.getpagespeed.com/check-nginx-config) — Вставьте вашу конфигурацию для мгновенного анализа
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

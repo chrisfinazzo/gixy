@@ -133,3 +133,5 @@ function `check_cve_YYYY_NNNNN(root)` next to it that yields
   and request-time control flow are not fully modeled.
 - **No auto-detection.** gixy does not shell out to `nginx -v`; you
   pass the version explicitly.
+
+--8<-- "en/snippets/nginx-extras-cta.md"

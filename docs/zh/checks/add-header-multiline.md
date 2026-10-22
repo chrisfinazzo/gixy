@@ -32,4 +32,4 @@ more_set_headers -t 'text/html text/plain'
 ## 如何规避？
 唯一的解决方案就是不要使用多行响应头。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

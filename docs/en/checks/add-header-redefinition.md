@@ -156,7 +156,7 @@ Set all headers in the `server` section and avoid `add_header` in locations.
 
 Use [ngx_headers_more](https://nginx-extras.getpagespeed.com/modules/headers-more/) module which has better inheritance behavior.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"
 
 ## CLI and config options
 

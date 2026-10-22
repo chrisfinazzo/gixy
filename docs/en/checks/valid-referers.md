@@ -30,4 +30,4 @@ E.g.:
 
 So, by using `none` as a valid referer, you nullify any attempts in referrer validation.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

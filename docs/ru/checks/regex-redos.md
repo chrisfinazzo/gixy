@@ -66,4 +66,4 @@ regex-VM. Это выявляет экспоненциальную и полин
 структурный анализ. Всё выполняется локально; runtime recall отключён, поэтому
 nginx-шаблоны не исполняются backtracking-движком Python.
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

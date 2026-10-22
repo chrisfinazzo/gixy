@@ -42,4 +42,4 @@ resolver_timeout 5s;
 - 被投毒的缓存项可能悄然将流量重定向到任意上游
 - 在回环地址运行本地解析器（如 `unbound`、`dnsmasq`）可以显著降低风险
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

@@ -105,4 +105,4 @@ let g:ale_linters = {
 
 Большинство современных терминалов (iTerm2, Windows Terminal, встроенный терминал VS Code) поддерживают клик по этим путям для прямого перехода к файлу и строке.
 
---8<-- "ru/snippets/nginx-extras-cta.md"
+--8<-- "ru/snippets/amplify-cta.md"

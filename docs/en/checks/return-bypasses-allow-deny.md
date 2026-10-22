@@ -32,4 +32,4 @@ location / {
 - Use a named location and `try_files` to direct traffic conditionally.
 - Move access control to a higher or matching context where it applies before `return`.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

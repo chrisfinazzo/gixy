@@ -365,4 +365,4 @@ See the [CI/CD Integration Guide](ci-cd-integration.md) for automated security c
 - [Gixy Documentation](index.md) — Full list of automated security checks
 - [Online NGINX Checker](https://www.getpagespeed.com/check-nginx-config) — Paste your config for instant analysis
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

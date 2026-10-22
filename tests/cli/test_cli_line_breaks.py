@@ -18,6 +18,6 @@ def test_cli_footer_has_separate_url_and_trailing_line_breaks(flag):
     assert completed.returncode == 0
     assert completed.stderr == ""
     assert completed.stdout.endswith(
-        "\n\nNGINX Extras by GetPageSpeed: packages for RHEL, Debian, and Ubuntu\n"
-        "https://www.getpagespeed.com/nginx-extras\n\n"
+        "\n\nContinuous Gixy scans + NGINX monitoring: GetPageSpeed Amplify\n"
+        "https://gixy.org/guides/nginx-monitoring-amplify\n\n"
     )

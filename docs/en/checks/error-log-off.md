@@ -27,4 +27,4 @@ the configuration file. Therefore, during startup or when reloading the configur
 NGINX may still log errors to the default error log location (usually `/var/log/nginx/error.log`)
 until validation is complete. To change the default log directory permanently, use the `--error-log-path` (or `-e`) option when starting NGINX.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

@@ -42,4 +42,4 @@ resolver_timeout 5s;
 - Poisoned cache entries can silently redirect traffic to arbitrary upstreams
 - A local resolver (e.g., `unbound`, `dnsmasq`) on loopback significantly mitigates this risk
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

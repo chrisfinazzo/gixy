@@ -27,7 +27,7 @@ location /status {
 }
 ```
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"
 
 ## Good Example
 

@@ -38,4 +38,4 @@ This check only flags case-sensitive regex locations (`~`). Case-insensitive reg
 
 Patterns that contain any regex features (character classes, quantifiers, groups, alternation) are also not flagged.
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

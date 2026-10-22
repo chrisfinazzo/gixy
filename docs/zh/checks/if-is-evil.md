@@ -18,4 +18,4 @@ _Gixy Check ID: `if_is_evil`_
 
 在某些情况下，可以考虑使用内嵌脚本模块（如 [embedded perl](https://nginx.org/en/docs/http/ngx_http_perl_module.html) 或 [Lua](https://nginx-extras.getpagespeed.com/lua-scripting/)）来实现逻辑。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

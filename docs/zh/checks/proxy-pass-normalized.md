@@ -29,4 +29,4 @@ location /api/ {
 
 路径归一化与解码可能导致绕过检查、路径混淆等问题。保持路径处理的明确性与一致性，避免在代理层引入非预期的变换。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

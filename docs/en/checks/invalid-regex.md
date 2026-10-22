@@ -128,4 +128,4 @@ server {
 4. **Remember that non-capturing groups don't create references** - patterns like `(?:...)`, `(?i)`, `(?=...)` don't create numbered groups
 5. **Test your regex patterns** to ensure they capture what you expect
 
---8<-- "en/snippets/nginx-extras-cta.md"
+--8<-- "en/snippets/amplify-cta.md"

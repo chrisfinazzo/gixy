@@ -38,4 +38,4 @@ location = /api/health {
 
 包含任何正则特性（字符类、量词、分组、选择分支）的模式也不会被标记。
 
---8<-- "zh/snippets/nginx-extras-cta.md"
+--8<-- "zh/snippets/amplify-cta.md"

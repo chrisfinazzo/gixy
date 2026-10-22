@@ -194,3 +194,49 @@ def test_rich_console_formatter_shows_line_numbers():
 
     # Should show file:line in VSCode-compatible format
     assert "/etc/nginx/nginx.conf:42" in output
+
+
+def _footer_output(plugin):
+    """Render a single-issue report and return the formatter output.
+
+    Args:
+        plugin: Plugin name for the issue, or None for a clean report.
+
+    Returns:
+        Rendered rich_console output (str).
+    """
+    from gixy.formatters import get_all
+
+    issues = []
+    if plugin:
+        issues.append(
+            {
+                "plugin": plugin,
+                "summary": "Issue",
+                "severity": "HIGH",
+                "description": "Description",
+                "help_url": "https://example.com",
+                "reason": "",
+                "config": "",
+            }
+        )
+    stats = {"HIGH": len(issues), "MEDIUM": 0, "LOW": 0, "UNSPECIFIED": 0}
+    formatter = get_all()["rich_console"]()
+    return formatter.format_reports({"/test/nginx.conf": issues}, stats)
+
+
+@pytest.mark.parametrize("plugin", [None, "version_disclosure"])
+def test_rich_console_footer_promotes_amplify_by_default(plugin):
+    """Test that the footer points to Amplify when no CVE is found."""
+    output = _footer_output(plugin)
+
+    assert "gixy.org/guides/nginx-monitoring-amplify" in output
+    assert "nginx-extras" not in output
+
+
+def test_rich_console_footer_promotes_extras_on_cve():
+    """Test that the footer points to NGINX Extras when a CVE is found."""
+    output = _footer_output("nginx_cves")
+
+    assert "getpagespeed.com/nginx-extras" in output
+    assert "nginx-monitoring-amplify" not in output
