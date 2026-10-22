@@ -53,3 +53,5 @@ http {
 ## Ссылки
 
 - Директива `listen` в NGINX: https://nginx.org/ru/docs/http/ngx_http_core_module.html#listen
+
+--8<-- "ru/snippets/amplify-cta.md"

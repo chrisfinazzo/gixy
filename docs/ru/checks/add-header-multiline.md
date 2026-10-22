@@ -31,3 +31,5 @@ more_set_headers -t 'text/html text/plain'
 
 ## Что делать?
 Единственный выход - отказ от многострочных заголовок ответа.
+
+--8<-- "ru/snippets/amplify-cta.md"

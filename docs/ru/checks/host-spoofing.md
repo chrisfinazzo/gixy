@@ -38,3 +38,5 @@ location @app {
 ## Дополнительная информация
   * [Host of Troubles Vulnerabilities](https://hostoftroubles.com/)
   * [Practical HTTP Host header attacks](http://www.skeletonscribe.net/2013/05/practical-http-host-header-attacks.html)
+
+--8<-- "ru/snippets/amplify-cta.md"

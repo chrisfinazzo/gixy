@@ -87,3 +87,5 @@ new-headers
 [add_header_redefinition]
 headers = x-frame-options, content-security-policy
 ```
+
+--8<-- "ru/snippets/amplify-cta.md"
