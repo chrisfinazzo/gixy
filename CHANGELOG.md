@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.59] - 2026-10-25
+
 ### Added
-- Bounded generated regex-boundary invariants and a temporary-copy mutation
-  check for the new analyzer safety proofs.
 - Support for Zstd, srcache, Echo and VTS variables, with built-in definitions of
   their possible values, a coverage matrix listing reviewed source versions and
   a contribution checklist.
@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   output as text that may contain any characters, without executing scripts.
 
 ### Fixed
+- Preserve quoted control characters when parsing NGINX configuration values.
 - Prove mandatory disjoint boundaries in static ReDoS analysis, including
   negated classes, while retaining warnings for nullable, case-folded and
   DOTALL overlaps.
@@ -44,10 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shorthand; ordinary response body text retains resolution diagnostics.
 - Require a resolver for configuration-defined dynamic map/regex hosts, including
   nested dependencies, while preserving catalog-only fallback behavior.
-
-### Changed
-- Publish Docker images only for published releases; master pushes retain image
-  builds and both smoke tests without logging into or publishing to registries.
 
 ## [0.2.58] - 2026-10-25
 
