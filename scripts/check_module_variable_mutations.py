@@ -134,17 +134,19 @@ def main():
         failed = False
         for name, filename, original, replacement, selector in MUTATIONS:
             path = work / filename
-            source = path.read_text()
+            source = path.read_text(encoding="utf-8")
             if source.count(original) != 1:
                 print("ERROR replacement anchor changed: " + name)
                 return 1
             mutated = source.replace(original, replacement, 1)
             ast.parse(mutated, filename=filename)
-            path.write_text(mutated)
+            with path.open("w", encoding="utf-8") as stream:
+                stream.write(mutated)
             try:
                 result = run_tests(work, selector)
             finally:
-                path.write_text(source)
+                with path.open("w", encoding="utf-8") as stream:
+                    stream.write(source)
             assertion_failed = (
                 "AssertionError" in result.stdout
                 or re.search(r": assert ", result.stdout) is not None
