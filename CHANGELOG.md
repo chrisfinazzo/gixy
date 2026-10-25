@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.58] - 2026-10-25
+
 ### Added
 - Audit-owned layered variable catalogs: bundled, vendor, administrator and
   explicitly selected directory models, with provenance and filesystem trust
