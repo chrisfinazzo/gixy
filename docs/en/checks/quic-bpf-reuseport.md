@@ -1,6 +1,6 @@
 ---
 title: "QUIC BPF Reuseport"
-description: "Detect quic_bpf + reuseport combination that silently drops QUIC connections after reload."
+description: "Check older nginx builds for the quic_bpf, reuseport and multiple-worker reload issue."
 ---
 
 # QUIC BPF Reuseport
@@ -10,13 +10,13 @@ _Gixy Check ID: `quic_bpf_reuseport`_
 
 ## Overview
 
-The `quic_bpf_reuseport` check detects a dangerous combination of three NGINX settings that causes **~50% of QUIC (HTTP/3) connections to silently fail** after every `nginx -s reload`:
+The `quic_bpf_reuseport` check detects a combination that may drop QUIC (HTTP/3) connections after `nginx -s reload` on older upstream builds:
 
-1. `quic_bpf on;` in the `events {}` block
+1. `quic_bpf on;` in the main context
 2. `reuseport` on a QUIC listen socket
 3. `worker_processes` > 1 (or `auto`)
 
-This is a known upstream NGINX bug ([nginx/nginx#425](https://github.com/nginx/nginx/issues/425)) that remains unfixed in mainline.
+Upstream nginx [1.31.7 includes the fix](https://nginx.org/en/CHANGES). Pass `--nginx-version=1.31.7` or newer to suppress this check for that upstream version. When the version is absent, invalid, or older, Gixy retains a conditional warning. Vendor builds may contain a backport that the version number alone cannot establish. Gixy does not detect an installed binary automatically.
 
 For a detailed explanation, see the [GetPageSpeed article](https://www.getpagespeed.com/server-setup/nginx/nginx-http3-reload-quic-connections-fail).
 
@@ -31,9 +31,8 @@ Triggers when **all three** conditions are present simultaneously.
 ```nginx
 worker_processes auto;
 
-events {
-    quic_bpf on;
-}
+quic_bpf on;
+events {}
 
 http {
     server {
@@ -49,9 +48,8 @@ http {
 ```nginx
 worker_processes auto;
 
-events {
-    quic_bpf off;
-}
+quic_bpf off;
+events {}
 
 http {
     server {
@@ -67,9 +65,8 @@ http {
 ```nginx
 worker_processes 1;
 
-events {
-    quic_bpf on;
-}
+quic_bpf on;
+events {}
 
 http {
     server {
@@ -82,4 +79,4 @@ http {
 
 ## Fix
 
-Disable `quic_bpf` by changing `quic_bpf on;` to `quic_bpf off;` in the `events {}` block. Alternatively, use [nginx-mod](https://www.getpagespeed.com/nginx-mod-a-better-faster-nginx-build) which includes the fix.
+Disable `quic_bpf` in the main context or use an nginx build that includes the upstream fix. `--nginx-version` is shared with the NGINX CVE check; the older `--nginx-cves-version` input remains a shared fallback when the global option is absent.

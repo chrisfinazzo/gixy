@@ -1,4 +1,5 @@
 import gixy
+from gixy.core.nginx_version import parse_oss
 
 
 class Config:
@@ -12,6 +13,7 @@ class Config:
         allow_includes=True,
         vars_dirs=None,
         load_default_vars=False,
+        nginx_version=None,
     ):
         self.severity = severity
         self.output_format = output_format
@@ -21,10 +23,14 @@ class Config:
         self.allow_includes = allow_includes
         self.vars_dirs = vars_dirs
         self.load_default_vars = load_default_vars
+        self.nginx_version = nginx_version
+        self.resolved_nginx_version = parse_oss(nginx_version)
         self.plugins_options = {}
 
     def set_for(self, name, options):
         self.plugins_options[name] = options
+        if name == "nginx_cves" and self.nginx_version is None:
+            self.resolved_nginx_version = parse_oss(options.get("version"))
 
     def get_for(self, name):
         if self.has_for(name):

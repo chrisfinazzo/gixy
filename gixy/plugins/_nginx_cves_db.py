@@ -37,27 +37,7 @@ patched-stable-branch hole are correctly excluded.
 import re
 
 import gixy
-
-
-def parse_oss(version_str):
-    """Parse an nginx OSS version string like ``1.29.8`` into a tuple.
-
-    Args:
-        version_str: Version in ``X.Y.Z`` form. A leading ``v`` is tolerated.
-
-    Returns:
-        Tuple of three ints, or ``None`` if the string is not parseable.
-    """
-    if not version_str:
-        return None
-    cleaned = version_str.strip().lstrip("v")
-    parts = cleaned.split(".")
-    if len(parts) != 3:
-        return None
-    try:
-        return tuple(int(p) for p in parts)
-    except ValueError:
-        return None
+from gixy.core.nginx_version import parse_oss
 
 
 def in_range(version, low, high):

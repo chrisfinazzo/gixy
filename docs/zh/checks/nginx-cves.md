@@ -1,11 +1,15 @@
 ---
 title: "NGINX CVE"
-description: "报告影响特定已安装 NGINX 版本及其配置的 CVE。"
+description: "输入明确的 NGINX 开源版本，检查该版本已知 CVE 与实际配置触发条件；报告受影响的服务器、相关指令、修复版本和官方公告。未提供版本时不推断已安装软件，也不会自动探测二进制文件。该版本同时用于 QUIC BPF 重载风险检查，便于核对升级或供应商补丁。"
 ---
 
 # NGINX CVE
 
 _Gixy Check ID: `nginx_cves`_
+
+显式传入的 `--nginx-version` 也供 QUIC BPF 检查使用。旧参数
+`--nginx-cves-version` 仅在未提供全局版本时作为共享回退值。
+Gixy 不会自动检测已安装的二进制文件或软件包版本。
 
 
 ## 概述

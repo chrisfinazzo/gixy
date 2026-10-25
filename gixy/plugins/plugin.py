@@ -40,6 +40,7 @@ class Plugin:
     def __init__(self, config):
         self._issues = []
         self.config = config
+        self.audit_context = None
 
     @property
     def help_url(self):

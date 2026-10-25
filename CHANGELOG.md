@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Bounded generated regex-boundary invariants and a temporary-copy mutation
+  check for the new analyzer safety proofs.
 - Support for Zstd, srcache, Echo and VTS variables, with built-in definitions of
   their possible values, a coverage matrix listing reviewed source versions and
   a contribution checklist.
@@ -20,6 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   output as text that may contain any characters, without executing scripts.
 
 ### Fixed
+- Prove mandatory disjoint boundaries in static ReDoS analysis, including
+  negated classes, while retaining warnings for nullable, case-folded and
+  DOTALL overlaps.
+- Evaluate OpenSSL cipher list commands in order, including intersections,
+  permanent and reversible exclusions, and reorder-only `+`; flag anonymous
+  and NULL selections and retain conditional warnings for unresolved aliases.
+- Bound map captures by their complete source expression, including literal
+  text and nested maps, and keep capture scope distinct across map entries.
+- Suppress proxy `$uri`/`$document_uri` HTTP-splitting warnings only when
+  every local rewrite path reaching the proxy proves the URI safe.
+- Share an explicitly supplied nginx version between CVE and QUIC checks;
+  upstream 1.31.7 and later suppress the QUIC reload warning.
 - Replace blanket trust of GeoIP, SSL and JWT prefixes with definitions for exact
   names or documented prefixes. Values that may contain any characters,
   including line breaks, remain subject to security checks.

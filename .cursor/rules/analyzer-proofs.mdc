@@ -1,0 +1,25 @@
+---
+description: Conservative proofs for regex, map, cipher, proxy and version checks
+globs: gixy/plugins/regex_redos.py,gixy/plugins/weak_ssl_tls.py,gixy/plugins/http_splitting.py,gixy/plugins/quic_bpf_reuseport.py,gixy/core/variable.py,gixy/core/config.py
+alwaysApply: false
+---
+
+- @gixy/plugins/regex_redos.py uses bounded finite/cofinite FIRST sets and
+  nullable tails. Unsupported sets cannot prove disjointness; never execute a
+  supplied regex with Python's backtracking matcher.
+- @gixy/plugins/weak_ssl_tls.py evaluates OpenSSL cipher commands symbolically.
+  A broad or unknown positive selector retains an opaque weak possibility until
+  a documented exclusion covers its entire family. Never use host OpenSSL
+  availability as a scanner safety proof.
+- @gixy/core/variable.py bounds map captures by the whole source alphabet,
+  including literals. Capture keys belong to one map entry, including entries
+  expanded from includes. Missing variables and cycles cannot prove safety.
+- @gixy/plugins/http_splitting.py proves proxy URI safety over every local
+  rewrite path, including `break` skipping a later `return`. Directive source
+  order is not proxy execution order. Unsupported mutations remain warnings.
+- @gixy/core/config.py resolves one explicit nginx version for both CVE and
+  QUIC checks. Global input wins over the legacy CVE version fallback; absent
+  or invalid input remains unknown. Never probe installed software.
+- @scripts/check_analyzer_proof_mutations.py runs bounded security-proof
+  mutations in temporary source copies. Each mutant must fail an observed
+  assertion, never merely fail to import or collect.

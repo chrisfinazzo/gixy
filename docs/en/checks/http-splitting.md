@@ -13,6 +13,13 @@ HTTP Splitting - attack that use improper input validation. It usually targets w
 Vulnerability is created when an attacker can insert newline character `\n` or `\r` into request or into response, created by Nginx.
 
 ## How can I find it?
+
+For `map` captures, Gixy uses the complete source expression to bound which
+characters a capture can contain. A capture of `$request_uri` cannot introduce
+a literal CR or LF, while the corresponding capture of decoded `$uri` may.
+Map output/default variables are checked independently. For a proxy
+`$uri` or `$document_uri` sink, Gixy follows local rewrite paths and clears a
+warning only if every path reaching `proxy_pass` proves the URI safe.
 You should always pay attention to:
  - variables that are used in directives, responsible for the request creation (for they may contain CRLF), e.g. `rewrite`, `return`, `add_header`, `proxy_set_header` or `proxy_pass`;
  - `$uri` and `$document_uri` variables, and in which directives they are used, because these variables contain decoded URL-encoded value;

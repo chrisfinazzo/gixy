@@ -55,9 +55,9 @@ from gixy.plugins.plugin import Plugin
 # Quantifier opcodes
 QUANTIFIERS = (MAX_REPEAT, MIN_REPEAT)
 
-# Concrete character sets for the standard regex categories that we can enumerate
-# safely. CATEGORY_NOT_* and locale/unicode variants stay unknown — boundary
-# detection falls back to "conservative / keep flagging" for those.
+# ASCII members of standard categories. They are not treated as exhaustive:
+# PCRE Unicode modes may add more members, so only ASCII nonmembers are safely
+# excluded by these category bounds.
 _CATEGORY_CHARS = {
     sre_constants.CATEGORY_DIGIT: set("0123456789"),
     sre_constants.CATEGORY_SPACE: set(" \t\n\r\f\v"),
@@ -155,6 +155,10 @@ class RedosAnalyzer:
         except (re.error, Exception):
             # If we can't parse it, we can't analyze it
             return []
+
+        # The vendored parser records global inline flags on the shared pattern.
+        self.case_insensitive = bool(parsed.pattern.flags & re.IGNORECASE)
+        self.dot_matches_newline = bool(parsed.pattern.flags & re.DOTALL)
 
         # Check for various vulnerability patterns
         self._check_nested_quantifiers(parsed, depth=0, in_quantifier=False)
@@ -293,10 +297,10 @@ class RedosAnalyzer:
         Returns:
             A set of chars, or None if undetermined.
         """
-        after = self._required_first_chars(parsed[i + 1 :])
-        if after:
-            return after
-        return inherited_tail
+        after, nullable = self._first(parsed[i + 1 :])
+        if nullable:
+            return self._set_union(after, inherited_tail)
+        return after
 
     def _body_tail(self, body, parent_parsed, i, inherited_tail):
         """Boundary chars for the END of an unbounded quantifier's body.
@@ -307,14 +311,8 @@ class RedosAnalyzer:
         outer quantifier in its parent scope.
         """
         outer_tail = self._next_or_inherited(parent_parsed, i, inherited_tail)
-        body_first = self._required_first_chars(body)
-        if body_first is None:
-            return None
-        if not body_first:
-            return outer_tail
-        if outer_tail is None:
-            return body_first
-        return body_first | outer_tail
+        body_first, _ = self._first(body)
+        return self._set_union(body_first, outer_tail)
 
     def _is_safe_boundary(self, quant_body, boundary):
         """True if the quantifier body's chars are disjoint from ``boundary``.
@@ -328,12 +326,89 @@ class RedosAnalyzer:
             True if the boundary is concrete and provably disjoint from the
             quantifier's first chars, False otherwise (conservative).
         """
-        if not boundary:
+        if boundary is None:
             return False
-        inner = self._required_first_chars(quant_body)
-        if not inner:
+        inner, nullable = self._first(quant_body)
+        if inner is None or nullable:
             return False
-        return boundary.isdisjoint(inner)
+        return self._sets_disjoint(boundary, inner)
+
+    @staticmethod
+    def _set_union(left, right):
+        """Union known finite/cofinite sets, retaining unknown as unknown."""
+        if left is None or right is None:
+            return None
+        left_finite, left_chars = left
+        right_finite, right_chars = right
+        if left_finite and right_finite:
+            return True, left_chars | right_chars
+        if left_finite:
+            return False, right_chars - left_chars
+        if right_finite:
+            return False, left_chars - right_chars
+        return False, left_chars & right_chars
+
+    def _sets_disjoint(self, left, right):
+        """Prove disjointness without enumerating an untrusted complement."""
+        left_finite, left_chars = left
+        right_finite, right_chars = right
+        if not left_finite and not right_finite:
+            return False
+        if left_finite and right_finite:
+            disjoint = left_chars.isdisjoint(right_chars)
+        elif left_finite:
+            disjoint = left_chars <= right_chars
+        else:
+            disjoint = right_chars <= left_chars
+        if not disjoint:
+            return False
+        # Unicode caseless matching can introduce letter equivalents outside
+        # an ASCII range. Only punctuation/digit boundaries remain provable.
+        if self.case_insensitive:
+            finite = left_chars if left_finite else right_chars
+            if any(char.isalpha() for char in finite):
+                return False
+        return True
+
+    def _first(self, parsed):
+        """Return possible FIRST characters and whether a sequence can be empty."""
+        result = (True, set())
+        nullable = True
+        for op, av in parsed:
+            chars, can_skip = self._atom_first(op, av)
+            result = self._set_union(result, chars)
+            if not can_skip:
+                nullable = False
+                break
+        return result, nullable
+
+    def _atom_first(self, op, av):
+        """Return the FIRST set and nullability for one parser atom."""
+        if op == LITERAL:
+            return (True, {chr(av)}), False
+        if op == NOT_LITERAL:
+            return (False, {chr(av)}), False
+        if op == ANY:
+            return (False, set() if self.dot_matches_newline else {"\n"}), False
+        if op == IN:
+            return self._in_chars(av), False
+        if op == AT or op in (ASSERT, ASSERT_NOT):
+            return (True, set()), True
+        if op == SUBPATTERN:
+            return self._first(av[1])
+        if op == BRANCH:
+            result = (True, set())
+            nullable = False
+            for branch in av[1]:
+                chars, branch_nullable = self._first(branch)
+                result = self._set_union(result, chars)
+                nullable |= branch_nullable
+            return result, nullable
+        if op in QUANTIFIERS:
+            minimum, _, subpattern = av
+            chars, sub_nullable = self._first(subpattern)
+            return chars, minimum == 0 or sub_nullable
+        return None, False
 
     def _required_first_chars(self, parsed):
         """Chars that MUST be consumed when matching ``parsed`` starts.
@@ -343,55 +418,8 @@ class RedosAnalyzer:
             ``None`` when the leading element can match a class we cannot
             enumerate (ANY, NOT_LITERAL, negated/unknown CATEGORY, etc.).
         """
-        if not parsed:
-            return set()
-        op, av = parsed[0]
-        if op == LITERAL:
-            return {chr(av)}
-        if op in (ANY, NOT_LITERAL):
-            return None
-        if op == IN:
-            return self._in_chars(av)
-        if op == AT:
-            return self._required_first_chars(parsed[1:])
-        if op == SUBPATTERN:
-            _, sub = av
-            sub_chars = self._required_first_chars(sub)
-            if sub_chars is None:
-                return None
-            if not sub_chars:
-                return self._required_first_chars(parsed[1:])
-            return sub_chars
-        if op == BRANCH:
-            _, branches = av
-            all_chars = set()
-            for branch in branches:
-                chars = self._required_first_chars(branch)
-                if chars is None:
-                    return None
-                if not chars:
-                    rest = self._required_first_chars(parsed[1:])
-                    if rest is None:
-                        return None
-                    return (all_chars | rest) if all_chars else rest
-                all_chars |= chars
-            return all_chars
-        if op in QUANTIFIERS:
-            min_repeat, _, sub = av
-            sub_chars = self._required_first_chars(sub)
-            if min_repeat == 0:
-                rest = self._required_first_chars(parsed[1:])
-                if sub_chars is None or rest is None:
-                    return None
-                return sub_chars | rest
-            if sub_chars is None:
-                return None
-            if not sub_chars:
-                return self._required_first_chars(parsed[1:])
-            return sub_chars
-        if op in (ASSERT, ASSERT_NOT):
-            return self._required_first_chars(parsed[1:])
-        return None
+        chars, _ = self._first(parsed)
+        return chars
 
     def _in_chars(self, members):
         """Enumerate the chars matched by a parsed IN clause.
@@ -403,22 +431,31 @@ class RedosAnalyzer:
             A set of chars, or ``None`` when negated or containing an
             un-enumerable CATEGORY (CATEGORY_NOT_*, locale/unicode variants).
         """
-        chars = set()
+        chars = (True, set())
+        negated = False
         for inner_op, inner_av in members:
             if inner_op == NEGATE:
-                return None
+                negated = True
+                continue
             if inner_op == LITERAL:
-                chars.add(chr(inner_av))
+                member = (True, {chr(inner_av)})
             elif inner_op == RANGE:
-                chars |= {chr(c) for c in range(inner_av[0], inner_av[1] + 1)}
+                if inner_av[1] - inner_av[0] + 1 > 256:
+                    return None
+                member = (True, {chr(c) for c in range(inner_av[0], inner_av[1] + 1)})
             elif inner_op == CATEGORY:
                 cat_chars = _CATEGORY_CHARS.get(inner_av)
                 if cat_chars is None:
                     return None
-                chars |= cat_chars
+                if negated:
+                    return None  # Complement of a Unicode-overapproximation.
+                member = (False, {chr(c) for c in range(128)} - cat_chars)
             else:
                 return None
-        return chars or None
+            chars = self._set_union(chars, member)
+            if chars is None or len(chars[1]) > 256:
+                return None
+        return (not chars[0], chars[1]) if negated else chars
 
     def _check_overlapping_alternatives(self, parsed, in_quantifier=False):
         """

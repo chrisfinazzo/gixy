@@ -59,7 +59,9 @@ class PluginsManager:
                 options = self.config.get_for(name)
             else:
                 options = plugin_cls.options
-            self._plugins.append(plugin_cls(options))
+            plugin = plugin_cls(options)
+            plugin.audit_context = self.config
+            self._plugins.append(plugin)
 
     @property
     def plugins(self):

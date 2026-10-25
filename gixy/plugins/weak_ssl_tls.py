@@ -7,6 +7,8 @@ Checks for:
 - Unnecessary ssl_prefer_server_ciphers on
 """
 
+import re
+
 import gixy
 from gixy.plugins.plugin import Plugin
 
@@ -62,12 +64,277 @@ WEAK_CIPHER_PATTERNS = [
     "RC4-MD5",
     "DES-CBC-SHA",
     "DES-CBC3-SHA",
+    "DHE-RSA-DES-CBC3-SHA",
+    "DHE-RSA-CAMELLIA128-SHA",
+    "ECDHE-RSA-CAMELLIA128-SHA",
     "EXPORT",
     "EXP-",
     "NULL-",
     "ADH-",
     "AECDH-",
 ]
+
+# Representative weak suites provide finite witnesses for selector algebra.
+# They are names from the documented OpenSSL grammar, not a probe of the host
+# build; a cipher absent from the host library must not make a scan pass.
+_WEAK_REPRESENTATIVES = (
+    "DES-CBC3-SHA",
+    "DES-CBC-SHA",
+    "ADH-AES128-SHA",
+    "AECDH-AES128-SHA",
+    "NULL-SHA",
+    "CAMELLIA128-SHA",
+    "CAMELLIA256-SHA",
+    "RC4-SHA",
+    "SEED-SHA",
+    "IDEA-CBC-SHA",
+    "EXP-RC4-MD5",
+)
+
+_WEAK_ALIASES = {
+    "ALL",
+    "DEFAULT",
+    "EXP",
+    "EXPORT",
+    "EXPORT40",
+    "EXPORT56",
+    "NULL",
+    "ENULL",
+    "ANULL",
+    "DES",
+    "3DES",
+    "DES-CBC3",
+    "RC4",
+    "MD5",
+    "ADH",
+    "AECDH",
+    "LOW",
+    "MEDIUM",
+    "CAMELLIA",
+    "SEED",
+    "IDEA",
+    "SSLV2",
+    "CAMELLIA128",
+    "CAMELLIA256",
+}
+
+_STRONG_CONCRETE = re.compile(
+    r"^(?:(?:ECDHE|DHE)-(?:RSA|ECDSA)-)?"
+    r"(?:(?:AES128|AES256)(?:-GCM)?-SHA(?:256|384)?|"
+    r"CHACHA20-POLY1305)$"
+)
+
+
+def _known_empty_intersection(selectors):
+    """Recognize intersections of mutually exclusive encryption families."""
+    families = set()
+    for selector in selectors:
+        name = selector.upper()
+        if name.startswith("AES"):
+            families.add("AES")
+        elif name.startswith("CAMELLIA"):
+            families.add("CAMELLIA")
+        elif name in ("3DES", "DES-CBC3"):
+            families.add("3DES")
+        elif name in ("ENULL", "NULL"):
+            families.add("NULL")
+        elif name in ("RC4", "SEED", "IDEA"):
+            families.add(name)
+    return len(families) > 1
+
+
+def _concrete_suite(name):
+    """Recognize concrete suites with known strong or weak memberships."""
+    upper = name.upper()
+    return bool(_STRONG_CONCRETE.fullmatch(upper)) or (
+        "-" in upper and upper not in _WEAK_ALIASES and _weak_name(upper)
+    )
+
+
+def _unsupported_aes_digest_suite(name):
+    """Reject concrete AES names with an undocumented numeric SHA suffix."""
+    match = re.fullmatch(
+        r"(?:(?:ECDHE|DHE)-(?:RSA|ECDSA)-)?AES(?:128|256)" r"(?:-GCM)?-SHA([0-9]+)",
+        name.upper(),
+    )
+    return match is not None and match.group(1) not in ("256", "384", "512")
+
+
+def _known_strong_intersection(selectors):
+    """Prove authenticated ephemeral DH plus AES excludes modeled weak families."""
+    names = {selector.upper() for selector in selectors}
+    encryption = {"AES128", "AES256", "AESGCM"}
+    authenticated = {"EDH", "DHE", "EECDH", "ECDHE"}
+    return (
+        bool(names & encryption)
+        and bool(names & authenticated)
+        and names <= (encryption | authenticated)
+    )
+
+
+def _selector_covers_positive(selector, positive):
+    """Prove an exclusion covers a whole symbolic positive selector."""
+    if selector == positive:
+        return True
+    if selector == "ALL":
+        return positive in _WEAK_ALIASES - {"ENULL", "NULL"} or positive in (
+            "AES",
+            "AES128",
+            "AES256",
+        )
+    supersets = {
+        "ANULL": {"ADH", "AECDH"},
+        "ENULL": {"NULL"},
+        "NULL": {"ENULL"},
+        "CAMELLIA": {"CAMELLIA128", "CAMELLIA256"},
+        "AES": {"AES128", "AES256"},
+        "3DES": {"DES-CBC3"},
+    }
+    return positive in supersets.get(selector, set())
+
+
+def _weak_name(name):
+    """Classify a documented weak selector or concrete suite name."""
+    upper = name.upper()
+    if upper in _WEAK_ALIASES:
+        return True
+    if upper in _WEAK_REPRESENTATIVES:
+        return True
+    return bool(
+        re.search(
+            r"(^|-)ADH-|(^|-)AECDH-|(^|-)NULL-|(^|-)RC4-|"
+            r"(^|-)CAMELLIA[0-9]*-|(^|-)DES-CBC3-|(^|-)DES-CBC-|"
+            r"(^|-)SEED-|(^|-)IDEA-|(^|-)EXP-|[-]MD5$",
+            upper,
+        )
+    )
+
+
+def _selector_matches(selector, suite):
+    """Return True, False, or None for unsupported selector membership."""
+    selector = selector.upper()
+    suite = suite.upper()
+    if suite.startswith("?"):
+        positives = suite[1:].split("+")
+        if any(_selector_covers_positive(selector, part) for part in positives):
+            return True
+        if selector == "ALL" and any(part in ("ENULL", "NULL") for part in positives):
+            return False
+        return None
+    if selector == suite:
+        return True
+    if selector == "ALL":
+        # ALL contains every suite except eNULL; DEFAULT is a subset of ALL.
+        return suite not in ("ENULL", "NULL-SHA") and not suite.startswith("NULL-")
+    if selector == "DEFAULT":
+        return None  # Build defaults and unsupported families vary.
+    if suite in ("ALL", "DEFAULT"):
+        return None
+    if selector in ("ANULL", "ADH", "AECDH"):
+        families = {
+            "ADH": suite.startswith("ADH-"),
+            "AECDH": suite.startswith("AECDH-"),
+        }
+        return any(families.values()) if selector == "ANULL" else families[selector]
+    if selector in ("ENULL", "NULL"):
+        return suite.startswith("NULL-") or "-NULL-" in suite
+    if selector in ("3DES", "DES-CBC3"):
+        return "DES-CBC3-" in suite
+    if selector == "DES":
+        return "DES-CBC-" in suite
+    if selector in ("CAMELLIA", "CAMELLIA128", "CAMELLIA256"):
+        return selector in suite
+    if selector in ("AES", "AES128", "AES256"):
+        return selector in suite
+    if selector == "AESGCM":
+        return "-AES128-GCM-" in suite or "-AES256-GCM-" in suite
+    if selector in ("KRSA", "RSA", "ARSA"):
+        return suite.startswith(
+            ("NULL-", "DES-CBC", "CAMELLIA", "RC4-", "SEED-", "IDEA-")
+        )
+    if selector in ("KDHE", "KEDH", "DH"):
+        return suite.startswith(("ADH-", "DHE-"))
+    if selector in ("KECDHE", "KEECDH", "ECDH"):
+        return suite.startswith(("AECDH-", "ECDHE-"))
+    if selector in ("EDH", "DHE"):
+        return suite.startswith("DHE-")
+    if selector in ("EECDH", "ECDHE"):
+        return suite.startswith("ECDHE-")
+    if selector in ("RC4", "SEED", "IDEA", "MD5"):
+        return selector in suite
+    if selector in ("EXP", "EXPORT", "EXPORT40", "EXPORT56"):
+        return suite.startswith("EXP-")
+    if selector in ("LOW", "MEDIUM", "SSLV2"):
+        return None
+    # Concrete suite selectors are exact; an unknown alias cannot prove
+    # deletion or intersection of a weak suite.
+    if "-" in selector:
+        return selector == suite
+    return None
+
+
+def _expression_matches(selectors, suite):
+    """Evaluate OpenSSL's interior ``+`` intersection conservatively."""
+    matches = [_selector_matches(selector, suite) for selector in selectors]
+    if False in matches:
+        return False
+    if None in matches:
+        return None
+    return True
+
+
+def _weak_enabled(expression):
+    """Track weak cipher witnesses through ordered OpenSSL list commands."""
+    enabled = set()
+    banned = []
+    for command in re.split(r"[:,\s]+", expression):
+        if not command or command.startswith("@"):
+            continue
+        operator = command[0] if command[0] in "!-+" else ""
+        body = command[1:] if operator else command
+        selectors = [part for part in body.split("+") if part]
+        if not selectors:
+            continue
+        if operator in ("!", "-"):
+            enabled = {
+                suite
+                for suite in enabled
+                if _expression_matches(selectors, suite) is not True
+            }
+            if operator == "!":
+                banned.append(selectors)
+            continue
+        if operator == "+":
+            continue  # Reorder only; never enable a new cipher.
+        if len(selectors) == 1 and _unsupported_aes_digest_suite(selectors[0]):
+            continue
+
+        concrete_expression = all(_concrete_suite(part) for part in selectors)
+        if concrete_expression and len({part.upper() for part in selectors}) > 1:
+            continue  # Distinct concrete suites cannot intersect.
+
+        candidates = set(_WEAK_REPRESENTATIVES)
+        candidates.update(
+            part.upper()
+            for part in selectors
+            if _weak_name(part) and part.upper() not in _WEAK_ALIASES
+        )
+        # A representative list alone cannot prove a broad selector safe.
+        # Keep an opaque weak possibility unless the positive expression is a
+        # recognized strong concrete suite or an impossible intersection.
+        if (
+            not _known_empty_intersection(selectors)
+            and not _known_strong_intersection(selectors)
+            and not concrete_expression
+        ):
+            candidates.add("?" + "+".join(part.upper() for part in selectors))
+        for suite in candidates:
+            if _expression_matches(selectors, suite) is not True:
+                continue
+            if any(_expression_matches(ban, suite) is True for ban in banned):
+                continue
+            enabled.add(suite)
+    return sorted(enabled)
 
 
 class weak_ssl_tls(Plugin):
@@ -167,30 +434,11 @@ class weak_ssl_tls(Plugin):
 
         cipher_string = directive.args[0] if directive.args else ""
 
-        # Parse cipher string - it's colon-separated
-        cipher_parts = cipher_string.replace("+", ":").replace(" ", ":").split(":")
-        cipher_parts = [c.strip() for c in cipher_parts if c.strip()]
-
-        weak_found = []
-        for cipher in cipher_parts:
-            # Skip negation prefixes
-            cipher_check = cipher.lstrip("!-")
-
-            # Check against weak cipher list
-            if cipher_check.upper() in WEAK_CIPHERS:
-                # Only flag if it's not being excluded (! prefix)
-                if not cipher.startswith("!"):
-                    weak_found.append(cipher)
-                continue
-
-            # Check against weak patterns
-            for pattern in WEAK_CIPHER_PATTERNS:
-                if pattern.upper() in cipher_check.upper():
-                    if not cipher.startswith("!"):
-                        weak_found.append(cipher)
-                    break
+        weak_found = _weak_enabled(cipher_string)
 
         if weak_found:
+            opaque = [value[1:] for value in weak_found if value.startswith("?")]
+            concrete = [value for value in weak_found if not value.startswith("?")]
             # Mozilla Intermediate compatibility cipher suite
             modern_ciphers = (
                 "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
@@ -202,9 +450,24 @@ class weak_ssl_tls(Plugin):
             self.add_issue(
                 severity=gixy.severity.HIGH,
                 directive=[directive, directive.parent],
-                summary="Weak SSL/TLS ciphers enabled",
-                reason=f"Weak ciphers found: {', '.join(weak_found[:5])}{'...' if len(weak_found) > 5 else ''}. "
-                "These ciphers are vulnerable to various attacks.",
+                summary=(
+                    "Weak SSL/TLS ciphers enabled"
+                    if concrete
+                    else "Possibly weak SSL/TLS cipher selection"
+                ),
+                reason=(
+                    "Weak cipher witnesses: " + ", ".join(concrete[:5]) + ". "
+                    if concrete
+                    else ""
+                )
+                + (
+                    "Possible weak selection from unresolved selectors: "
+                    + ", ".join(opaque[:5])
+                    + ". "
+                    if opaque
+                    else ""
+                )
+                + "Review the resulting cipher list against the target OpenSSL build.",
                 fixes=[
                     self.make_fix(
                         title="Use Mozilla Intermediate cipher suite",

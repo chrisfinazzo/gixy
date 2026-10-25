@@ -340,9 +340,8 @@ def _get_cli_parser():
         default=None,
         metavar="X.Y.Z",
         help=(
-            "Installed nginx Open Source version (e.g. 1.29.8). Enables "
-            "the nginx_cves check to report CVEs that affect this "
-            "version. Without this flag, nginx_cves stays silent."
+            "Explicit upstream nginx Open Source version (e.g. 1.31.7) "
+            "shared by version-aware checks. No installed version is detected."
         ),
     )
 
@@ -397,7 +396,11 @@ def main():
             allow_includes=not args.disable_includes,
             vars_dirs=vars_dirs,
             load_default_vars=load_default_vars,
+            nginx_version=args.nginx_version,
         )
+        legacy_version = getattr(args, "nginx_cves:version", None)
+        if legacy_version is not None:
+            config.set_for("nginx_cves", {"version": legacy_version})
         from gixy.cli.server import run_server
 
         run_server(config)
@@ -453,12 +456,8 @@ def main():
         allow_includes=not args.disable_includes,
         vars_dirs=vars_dirs,
         load_default_vars=load_default_vars,
+        nginx_version=args.nginx_version,
     )
-
-    # Top-level --nginx-version aliases the auto-generated
-    # --nginx-cves-version (the dest argparse uses for the per-plugin form).
-    if args.nginx_version:
-        setattr(args, "nginx_cves:version", args.nginx_version)
 
     # Top-level --deep enables the current deep-capable check while preserving
     # its auto-generated --regex-redos-deep per-plugin configuration option.

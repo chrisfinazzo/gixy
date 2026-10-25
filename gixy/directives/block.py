@@ -307,7 +307,7 @@ class MapBlock(Block):
                         value=dest_val,
                         have_script=False,
                         provider=child,
-                        ctx=src_val,
+                        ctx=child,
                     )
                 )
                 continue
@@ -320,7 +320,7 @@ class MapBlock(Block):
                         value=group,
                         provider=child,
                         boundary=None,
-                        ctx=src_val,
+                        ctx=child,
                     )
                 )
                 break  # Only need the first result (full expression)
@@ -333,7 +333,7 @@ class MapBlock(Block):
                     boundary=None,
                     provider=child,
                     have_script=False,
-                    ctx=src_val,
+                    ctx=child,
                 ),
             )
 

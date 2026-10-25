@@ -13,6 +13,11 @@ HTTP 拆分是由于输入校验不当而导致的一类攻击。它通常针对
 当攻击者能够将换行符 `\n` 或 `\r` 注入到请求，或由 Nginx 生成的响应中时，就会产生此漏洞。
 
 ## 如何发现？
+
+对于 `map` 捕获组，Gixy 根据完整来源表达式限制可能出现的字符：
+`$request_uri` 不含字面 CR/LF，而解码后的 `$uri` 可能包含。
+对于使用 `$uri` 的 `proxy_pass`，只有到达代理的每条本地 `rewrite` 路径
+都能证明 URI 安全时才取消警告。
 应始终关注：
 - 用于构造请求的指令中所用到的变量（这些变量可能包含 CRLF），例如 `rewrite`、`return`、`add_header`、`proxy_set_header`、`proxy_pass`；
 - `$uri` 与 `$document_uri` 变量，以及它们被用于哪些指令，因为它们包含“已解码”的 URL 值；

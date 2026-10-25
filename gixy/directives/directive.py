@@ -441,6 +441,7 @@ class MapDirective(Directive):
             return []
 
         result = []
+        map_source = ancestor.source
         for name, group in self.regex.groups.items():
             result.append(
                 Variable(
@@ -448,7 +449,8 @@ class MapDirective(Directive):
                     value=group,
                     provider=self,
                     boundary=None,
-                    ctx=self.src_val,
+                    ctx=self,
+                    capture_source=map_source,
                 )
             )
         return result

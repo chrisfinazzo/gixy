@@ -29,6 +29,14 @@ Detects use of deprecated protocols that are vulnerable to attacks:
 ### 2. Weak Cipher Suites
 Detects cipher suites that should be avoided:
 
+`ssl_ciphers` is evaluated as an ordered OpenSSL expression: `!` permanently
+excludes, `-` removes until later re-added, a leading `+` only reorders, and
+an interior `+` intersects selectors. Broad or unknown selectors may produce
+a **possible weak selection** warning when their full suite membership cannot
+be proved from configuration. The scanner does not use the host OpenSSL build
+to dismiss a suite that may exist on the target server. See the
+[OpenSSL cipher-string syntax](https://docs.openssl.org/3.5/man1/openssl-ciphers/).
+
 - **NULL ciphers** - No encryption at all
 - **EXPORT ciphers** - Intentionally weakened (40-56 bit)
 - **DES/3DES** - Vulnerable to Sweet32 attack

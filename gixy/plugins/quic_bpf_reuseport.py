@@ -6,9 +6,8 @@ When all three conditions are met simultaneously:
 2. ``reuseport`` on a QUIC listen socket
 3. ``worker_processes`` > 1 (or ``auto``)
 
-NGINX silently drops ~50% of QUIC connections after ``nginx -s reload``
-due to stale BPF reuseport maps. This is a known upstream bug
-(nginx/nginx#425) unfixed in mainline.
+Older upstream builds can drop QUIC connections after ``nginx -s reload``
+due to stale BPF reuseport maps. Upstream nginx 1.31.7 includes a fix.
 """
 
 import gixy
@@ -16,12 +15,13 @@ from gixy.plugins.plugin import Plugin
 
 
 class quic_bpf_reuseport(Plugin):
-    summary = "quic_bpf with reuseport silently drops QUIC connections after reload"
+    summary = "quic_bpf with reuseport may drop QUIC connections after reload"
     severity = gixy.severity.HIGH
     description = (
         "When quic_bpf is enabled alongside reuseport on a QUIC listen socket "
-        "and multiple worker processes, NGINX silently drops ~50% of QUIC "
-        "connections after every reload. Disable quic_bpf or switch to nginx-mod."
+        "and multiple worker processes, older upstream builds may drop QUIC "
+        "connections after reload. Upstream nginx 1.31.7 includes a fix; "
+        "vendor backports may also contain it."
     )
     directives = []
     supports_full_config = True
@@ -31,6 +31,13 @@ class quic_bpf_reuseport(Plugin):
         return
 
     def post_audit(self, root):
+        version = (
+            self.audit_context.resolved_nginx_version
+            if self.audit_context is not None
+            else None
+        )
+        if version is not None and version >= (1, 31, 7):
+            return
         # 1. Check for quic_bpf on in the main context
         quic_bpf = root.some("quic_bpf")
         if not quic_bpf or not quic_bpf.args or quic_bpf.args[0] != "on":
@@ -68,10 +75,10 @@ class quic_bpf_reuseport(Plugin):
                         summary=self.summary,
                         reason=(
                             "quic_bpf on + reuseport on a QUIC listener with "
-                            "multiple workers causes ~50%% QUIC connection "
-                            "drops after reload (nginx/nginx#425). "
-                            "Either disable quic_bpf or switch to nginx-mod "
-                            "which includes the fix for this bug."
+                            "multiple workers may cause QUIC connection "
+                            "drops after reload on nginx versions before "
+                            "upstream 1.31.7 (nginx/nginx#425). Vendor "
+                            "backports may already contain the fix."
                         ),
                         fixes=[
                             self.make_fix(
@@ -80,7 +87,7 @@ class quic_bpf_reuseport(Plugin):
                                 replace="quic_bpf off",
                                 description=(
                                     "Turn off quic_bpf to prevent stale BPF reuseport maps after reload. "
-                                    "Alternatively, switch to nginx-mod which includes the actual fix."
+                                    "Alternatively, use an nginx build with the upstream fix."
                                 ),
                             ),
                         ],

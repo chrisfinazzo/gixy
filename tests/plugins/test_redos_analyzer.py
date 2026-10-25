@@ -1,5 +1,8 @@
 """Unit tests for the ReDoS analyzer."""
 
+from itertools import product
+
+import pytest
 from redoctor import Diagnostics
 
 from gixy.plugins.regex_redos import RedosAnalyzer, RedosVulnerability
@@ -55,6 +58,24 @@ class TestNestedQuantifiers:
         analyzer = RedosAnalyzer("^/(a+)+$")
         vulns = analyzer.analyze()
         assert len(vulns) > 0
+
+    @pytest.mark.parametrize(
+        "pattern,ignore_case",
+        [
+            ("(a+b?)+", False),
+            ("([a-z]+A)+", True),
+            ("(?i)([a-z]+A)+", False),
+            ("([^/]+/?)+", False),
+            ("([^a]+a?)+", False),
+            (r"(?s)(\n+.)+", False),
+            ("([^\x00-\U0010ffff]+/)+", False),
+            (r"(\w+é)+", False),
+        ],
+    )
+    def test_nullable_or_overlapping_boundary_remains_unsafe(
+        self, pattern, ignore_case
+    ):
+        assert RedosAnalyzer(pattern, case_insensitive=ignore_case).analyze()
 
 
 class TestOverlappingAlternatives:
@@ -217,6 +238,28 @@ class TestSafePatterns:
         analyzer = RedosAnalyzer("((a+)b)+")
         vulns = analyzer.analyze()
         assert len(vulns) == 0
+
+    @pytest.mark.parametrize(
+        "pattern",
+        [
+            "^/(?:alpha|beta|gamma)/[^/]+/(?:[^/]+/)*index(?:/|$)",
+            "([^/]+/)+end",
+            "([^/x]+/)+end",
+            "([^a]+a)+end",
+            "(?:[^/]+/)*index",
+            "(a+b)+",
+        ],
+    )
+    def test_mandatory_disjoint_boundary(self, pattern):
+        assert RedosAnalyzer(pattern).analyze() == []
+
+
+@pytest.mark.parametrize("delimiter,optional", list(product("/:#", (False, True))))
+def test_generated_delimiter_boundary_invariant(delimiter, optional):
+    """A required excluded delimiter is safe; an optional one is ambiguous."""
+    suffix = "?" if optional else ""
+    pattern = f"([^{delimiter}q]+{delimiter}{suffix})+"
+    assert bool(RedosAnalyzer(pattern).analyze()) is optional
 
 
 class TestRealWorldVulnerablePatterns:

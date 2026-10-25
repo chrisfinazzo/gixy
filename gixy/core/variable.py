@@ -9,6 +9,30 @@ LOG = logging.getLogger(__name__)
 EXTRACT_RE = re.compile(r"\$([1-9]|[a-z_][a-z0-9_]*|\{[a-z0-9_]+\})", re.IGNORECASE)
 
 
+def _is_map_entry(provider):
+    """Recognize map entries, including entries expanded from includes."""
+    parent = provider.parent
+    while parent is not None:
+        if parent.name == "map" and parent.is_block:
+            return True
+        parent = parent.parent
+    return False
+
+
+def _script_possible_char(script, char, ctx, seen):
+    """Check the full character alphabet of a script, including literals."""
+    context = get_context()
+    for index, piece in enumerate(EXTRACT_RE.split(str(script))):
+        if index % 2 == 0:
+            if char in piece:
+                return True
+            continue
+        dependency = context.get_var(piece.strip("{}\x20"), ctx=ctx)
+        if dependency is None or dependency._possible_char(char, seen):
+            return True
+    return False
+
+
 def compile_script(script, ctx=None):
     """
     Compile Nginx script to list of variables.
@@ -49,6 +73,7 @@ class Variable:
         provider=None,
         have_script=True,
         ctx=None,
+        capture_source=None,
     ):
         """
         Gixy Nginx variable class - parse and provide helpers to work with it.
@@ -69,6 +94,7 @@ class Variable:
         self.provider = provider
         self.final_value = value
         self.ctx = ctx
+        self.capture_source = capture_source
         if isinstance(value, Regexp):
             self.regexp = value
         elif have_script:
@@ -92,7 +118,39 @@ class Variable:
                 all_vars = [str(i.value) for i in new_depends]
                 self.final_value = "".join(all_vars)
 
-    def can_contain(self, char):
+    def _source_can_contain(self, char, seen):
+        """Bound a capture using every literal and dependency in its map source."""
+        return _script_possible_char(self.capture_source, char, None, seen)
+
+    def _possible_char(self, char, seen):
+        """Check possible values for source provenance, without taint filtering."""
+        if id(self) in seen:
+            return True
+        seen = seen | {id(self)}
+        if self.capture_source is not None and not self._source_can_contain(char, seen):
+            return False
+        if self.boundary and not self.boundary.can_contain(char, skip_literal=False):
+            return False
+        if self.regexp:
+            return self.regexp.can_contain(char, skip_literal=False)
+        if self.depends is not None:
+            return _script_possible_char(self.value, char, self.ctx, seen)
+        if isinstance(self.value, list):
+            for entry in self.value:
+                if not isinstance(entry, Variable) or not entry.provider:
+                    return True
+                if not _is_map_entry(entry.provider):
+                    return True
+                if _script_possible_char(
+                    entry.provider.dest_val, char, entry.provider, seen
+                ):
+                    return True
+            return False
+        if self.value is None:
+            return True
+        return char in str(self.value)
+
+    def can_contain(self, char, _seen=None):
         """
         Checks if variable can contain the specified char.
 
@@ -100,17 +158,27 @@ class Variable:
         :return: True if variable can contain the specified char, False otherwise.
         """
 
+        seen = set() if _seen is None else _seen
+        if id(self) in seen:
+            return True  # Cyclic dependency cannot establish a safe bound.
+        seen = seen | {id(self)}
+
+        if self.capture_source is not None and not self._source_can_contain(char, seen):
+            return False
+
         # First of all check boundary set
         if self.boundary and not self.boundary.can_contain(char):
             return False
 
         # Then regexp
         if self.regexp:
-            return self.regexp.can_contain(char, skip_literal=True)
+            return self.regexp.can_contain(
+                char, skip_literal=self.capture_source is None
+            )
 
         # Then dependencies
         if self.depends:
-            return any(dep.can_contain(char) for dep in self.depends)
+            return any(dep.can_contain(char, seen) for dep in self.depends)
 
         # If the value is a list (hash block), check all dest_val values
         if isinstance(self.value, list):
@@ -121,18 +189,14 @@ class Variable:
                     or var.provider.nginx_name != "map"
                 ):  # import MapDirective would be better but circular import..
                     continue  # break?
-                if (
-                    var.provider.parent.nginx_name != "map"
-                ):  # import MapBlock would be better but circular import..
+                if not _is_map_entry(var.provider):
                     continue  # break?
 
-                compiled_val = compile_script(
-                    var.provider.dest_val, ctx=var.provider.src_val
-                )
+                compiled_val = compile_script(var.provider.dest_val, ctx=var.provider)
                 # A map whose value repeats its source variable cannot be
                 # resolved here, but no additional information is available.
                 for dep in compiled_val:
-                    if dep.can_contain(char):
+                    if dep.can_contain(char, seen):
                         return True
 
         # Otherwise user can't control value of this variable
@@ -167,12 +231,10 @@ class Variable:
                     or var.provider.nginx_name != "map"
                 ):
                     continue
-                if var.provider.parent.nginx_name != "map":
+                if not _is_map_entry(var.provider):
                     continue
 
-                compiled_val = compile_script(
-                    var.provider.dest_val, ctx=var.provider.src_val
-                )
+                compiled_val = compile_script(var.provider.dest_val, ctx=var.provider)
                 if compiled_val:
                     if compiled_val[0].can_startswith(char):
                         return True
@@ -210,12 +272,10 @@ class Variable:
                     or var.provider.nginx_name != "map"
                 ):
                     continue
-                if var.provider.parent.nginx_name != "map":
+                if not _is_map_entry(var.provider):
                     continue
 
-                compiled_val = compile_script(
-                    var.provider.dest_val, ctx=var.provider.src_val
-                )
+                compiled_val = compile_script(var.provider.dest_val, ctx=var.provider)
                 found_must_contain = False
                 for dep in compiled_val:
                     if dep.must_contain(char):
@@ -258,12 +318,10 @@ class Variable:
                     or var.provider.nginx_name != "map"
                 ):
                     continue
-                if var.provider.parent.nginx_name != "map":
+                if not _is_map_entry(var.provider):
                     continue
 
-                compiled_val = compile_script(
-                    var.provider.dest_val, ctx=var.provider.src_val
-                )
+                compiled_val = compile_script(var.provider.dest_val, ctx=var.provider)
                 if not compiled_val or not compiled_val[0].must_startswith(char):
                     return False
 

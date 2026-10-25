@@ -1,7 +1,7 @@
 """Unified nginx CVE advisor: version-range + config-pattern checks."""
 
 import gixy
-from gixy.plugins._nginx_cves_db import CVES, in_any_range, parse_oss
+from gixy.plugins._nginx_cves_db import CVES, in_any_range, parse_oss as parse_oss
 from gixy.plugins.plugin import Plugin
 
 
@@ -42,21 +42,17 @@ class nginx_cves(Plugin):
     # Per-directive audit() is unused — all logic runs in post_audit().
     directives = []
 
-    def __init__(self, config):
-        """Initialize and parse the user-supplied nginx version.
-
-        Args:
-            config: gixy plugin Config; reads the ``version`` key.
-        """
-        super().__init__(config)
-        self._oss_version = parse_oss(self.config.get("version"))
-
     def post_audit(self, root):
         """Walk the CVE database against the supplied version and config.
 
         Args:
             root: Root Block of the parsed nginx config tree.
         """
+        self._oss_version = (
+            self.audit_context.resolved_nginx_version
+            if self.audit_context is not None
+            else None
+        )
         if self._oss_version is None:
             return
         for cve in CVES:

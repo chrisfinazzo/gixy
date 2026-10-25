@@ -15,6 +15,11 @@ database. Pass `--nginx-version=1.31.6` so gixy knows which NGINX binary
 will load the config; without it, the check stays silent (gixy is a static config
 analyzer and has no view of the binary).
 
+The explicit `--nginx-version` also informs the QUIC BPF reload check. The
+older `--nginx-cves-version` option remains a shared fallback when the global
+option is absent. An invalid version remains unknown; Gixy never probes the
+installed binary or packages.
+
 Pure binary-level CVEs are reported whenever the supplied version falls
 in an affected range. CVEs tied to a module or configuration pattern are
 reported only when both the version and trigger match. Those reports

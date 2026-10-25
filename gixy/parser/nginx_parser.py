@@ -292,14 +292,16 @@ class NginxParser:
 
         try:
             if klass.is_block:
-                args = [to_native(v).strip() for v in parsed_args[0]]
+                # Crossplane has already separated argument syntax. Trimming
+                # again loses quoted CR/LF bytes that nginx keeps in values.
+                args = [to_native(v) for v in parsed_args[0]]
                 children = parsed_args[1]
 
                 inst = klass(parsed_name, args)
                 self.parse_block(children, inst)
                 return inst
             else:
-                args = [to_native(v).strip() for v in parsed_args]
+                args = [to_native(v) for v in parsed_args]
                 return klass(parsed_name, args)
         except (IndexError, TypeError) as e:
             raise InvalidConfiguration(

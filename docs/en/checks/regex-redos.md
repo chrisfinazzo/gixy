@@ -64,6 +64,12 @@ location ~ ^/(.|x)+/path$ {
 
 ## Safe patterns
 
+The fast analyzer proves some nested repetitions safe when a required
+delimiter cannot be consumed by the repeated class, including negated classes
+such as `([^/]+/)+`. Optional delimiters, case-insensitive overlaps and
+unsupported character sets retain a warning. It bounds character-set work
+instead of enumerating arbitrary Unicode ranges.
+
 ```nginx
 # GOOD - simple character class
 location ~ ^/[a-z]+$ {
