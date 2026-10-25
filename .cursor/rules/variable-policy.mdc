@@ -45,18 +45,25 @@ alwaysApply: false
   requires the exact documented two-argument form. Lookup paths/defaults do not
   constrain arbitrary database UTF8/BYTES. Skip invalid inner includes before I/O.
 - Mixed GeoIP2/map/geo/njs/Perl main-scope destinations use audit-owned exact
-  node/name overrides, opaque output and aggregate provenance. Ignore captures
-  and map source keys. Local set overrides retain existing scope behavior.
+  node/name overrides, unrestricted output and all declaration locations. Ignore
+  captures and map source keys. Local set overrides retain existing scope behavior.
 - Context local named keys are lowercase; preserve numeric captures, ctx keys,
   original catalog lookup spelling and catalog case behavior.
 - Script provider output is `[\s\S]*`, including writable js_var regardless
-  of initializer. Preserve set_by_lua_block header args and opaque raw body;
+  of initializer. Preserve set_by_lua_block header args and uninterpreted raw body;
   do not execute scripts or read Lua files. njs nocache arity predates the
   bundled crossplane table, so parser validates this pinned form directly.
 - @gixy/plugins/missing_resolver.py follows real dependencies to prove literals;
-  config-owned dynamic models require resolver. Catalog-only names retain their
-  unsupported behavior. Never classify stringified regexes as hostnames.
-- Update @docs/en/module-variable-coverage.md with source registration/getter
-  pins, defaults, scope, taint and regression proof for any new module model.
+  configuration-defined dynamic host values require resolver. Catalog-only names
+  retain their unsupported behavior. Never classify stringified regexes as
+  hostnames.
+- Update @docs/en/module-variable-coverage.md with reviewed source versions for
+  registration and value-returning functions, defaults, scope, user-controlled
+  characters and regression proof for each newly supported module variable.
   @tests/core/test_module_variables.py exercises these guarantees without
   NGINX, module loading, databases or script execution.
+
+- In user-facing documentation, say "supported variables", "variable definitions"
+  or "possible values" as appropriate; avoid "models" jargon. Explain numbers,
+  fixed status strings and values that may contain any characters, including
+  line breaks. Recognizing a name promises neither safety nor module availability.

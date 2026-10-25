@@ -1,30 +1,34 @@
 ---
 title: "Variables & Layered Drop-ins"
-description: "Describe third-party NGINX variable values with trusted, layered policy files."
+description: "Supported NGINX variables, their possible values, and layered definitions that guide security checks."
 ---
 
 # Variables & Drop-ins
 
-Gixy bundles models of NGINX variables, including the exact third-party name
-`$brotli_ratio`. Its conservative `[0-9.]*` model describes decimal output or
-absence: it excludes CR/LF and slash, while retaining dots for conservative
-SSRF analysis. The model comes from the
-[GetPageSpeed ngx_brotli v0.1.4 getter](https://github.com/GetPageSpeed/ngx_brotli/blob/v0.1.4/filter/ngx_http_brotli_filter_module.c#L778-L816).
-This describes possible values; it does not prove that the target module is
-installed or loaded. Unknown names still produce diagnostic messages, and
-there is no blanket `brotli_` model.
+Gixy recognizes supported NGINX variables and uses definitions of their possible
+values when checking for security issues. A variable may contain numbers, fixed
+cache status strings, or arbitrary text. These differences determine which
+security checks can report a problem.
+
+For example, the third-party variable `$brotli_ratio` can contain digits and dots,
+or be absent. Gixy records these character restrictions as `[0-9.]*`: they exclude
+CR/LF and slash, while retaining dots for conservative SSRF checks. This follows the
+[GetPageSpeed ngx_brotli v0.1.4 value-returning function](https://github.com/GetPageSpeed/ngx_brotli/blob/v0.1.4/filter/ngx_http_brotli_filter_module.c#L778-L816).
+Recognizing a name does not prove that the target module is installed or loaded,
+or that its output is safe. Unknown names still produce diagnostic messages;
+Gixy does not treat every name starting with `brotli_` as supported or safe.
 
 ## Module declarations and bundled coverage
 
 > **Unreleased (main branch, next release):** This section describes changes
 > after 0.2.58. The layered catalog behavior below is already available in 0.2.58.
 
-Bundled models now cover compression ratios, srcache statuses/expiry, Echo,
-VTS counters, the exact GeoIP and SSL names, and documented JWT claims/headers.
-Models bound possible characters; recognition does not prove module availability.
-Opaque database, certificate, JWT and script output remains eligible for security
-findings. Unsupported names such as `$ssl_typo`, `$geoip_typo` and `$jwt_type`
-remain unknown. See the [source-pinned coverage matrix](module-variable-coverage.md).
+Built-in definitions now cover compression ratios, srcache statuses and expiry,
+Echo, VTS counters, the exact GeoIP and SSL names, and documented JWT claims/headers.
+They describe possible characters without asserting that a module is available.
+Database, certificate, JWT and script values may contain any characters, including
+line breaks, so Gixy continues to check them for security issues. Unsupported names
+such as `$ssl_typo`, `$geoip_typo` and `$jwt_type` remain unknown. See the [coverage matrix with reviewed source versions](module-variable-coverage.md).
 
 GeoIP2 aliases come from declarations in HTTP-main or stream-main configuration:
 
@@ -38,10 +42,12 @@ http {
 }
 ```
 
-`$country` is opaque even with `iso_code` or `default=US`: runtime database
-values need not be country codes, and defaults are literal bytes, not expressions.
-Only exact `metadata build_epoch`, `metadata last_check` and `metadata last_change`
-forms get decimal bounds. Data aliases include empty, missing and default outcomes.
+`$country` may contain any characters, including line breaks, even with
+`iso_code` or `default=US`: runtime database values need not be country codes,
+and defaults are literal bytes, not expressions. Only exact `metadata build_epoch`,
+`metadata last_check` and `metadata last_change` forms restrict values to the
+characters used for decimal numbers. Data aliases include empty, missing and
+default outcomes.
 Gixy never opens the database or evaluates source expressions to infer types.
 
 Local declared names are case-insensitive. The last GeoIP2 declaration in expanded
@@ -51,17 +57,18 @@ and skipped before any filesystem or dump expansion. HTTP and stream scopes and
 separate audits stay isolated. Configuration declarations beat catalog drop-ins,
 even with system policy disabled.
 
-An overlapping main-scope map, geo, njs or Perl destination makes the alias opaque
-and produces a collision diagnostic with all declaration locations. Rename those
-destinations to establish unambiguous ownership. Local `set` assignments keep their
+If a main-scope map, geo, njs or Perl declaration uses the same destination name,
+Gixy treats that variable as allowing any characters and reports the conflicting
+declaration locations. Rename those destinations to establish unambiguous ownership. Local `set` assignments keep their
 ordinary inherited override behavior.
 
 `set_by_lua`, `set_by_lua_file`, `set_by_lua_block`, `perl_set`, `js_set` and
-`js_var` produce opaque provider-owned results. Script bodies and files are never
-executed or inspected for return values. A writable `js_var` initializer cannot
+`js_var` return values that Gixy treats as unrestricted text, including line breaks.
+Each definition retains the script declaration that supplies its value. Script
+bodies and files are never executed or inspected for return values. A writable `js_var` initializer cannot
 permanently constrain its output. Configuration-defined dynamic proxy hosts need
-a resolver unless Gixy proves a literal IP or upstream; a regex model is never
-interpreted as a hostname.
+a resolver unless Gixy proves a literal IP or upstream; a regular expression
+that describes possible values is never interpreted as a hostname.
 
 
 ## Layers and precedence
@@ -69,7 +76,7 @@ interpreted as a hostname.
 Ordinary CLI scans, including no-argument and stdin scans, load these layers
 from lowest to highest precedence:
 
-1. Bundled models.
+1. Built-in variable definitions.
 2. Vendor/module files in `/usr/share/gixy/vars.d`.
 3. Administrator files in `/etc/gixy/vars.d`.
 4. Explicit directories from `--vars-dirs`, in supplied order (later wins).
@@ -77,7 +84,7 @@ from lowest to highest precedence:
 Each directory forms its own layer. Files ending in `.cfg` or `.conf` are read
 in lexical filename order; the last valid definition of a key wins, including
 duplicates within one file. Invalid entries retain any valid earlier or lower
-model and warn with the source file and line.
+definition and warn with the source file and line.
 
 Lookup selects the highest layer containing any match, then an exact name,
 then the longest matching prefix ending in `_`. Thus a higher-layer `http_`
@@ -116,8 +123,8 @@ Library `Config(load_default_vars=False)` and `--server` default to bundled-only
 policy. Operators can enable discovery or pass `vars_dirs` at startup. Individual
 server requests and uploaded NGINX text cannot change this policy or select
 policy paths. Each audit gets a fresh catalog, shared with its child contexts;
-one audit's custom models do not leak into another. Other global analyzer state
-remains, so this is not a general thread-safety guarantee.
+one audit's custom variable definitions do not affect another. Other global
+analyzer state remains, so this is not a general thread-safety guarantee.
 
 ## File format
 

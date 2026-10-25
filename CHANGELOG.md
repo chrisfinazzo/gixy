@@ -8,18 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Portable bundled models for Zstd, srcache, Echo and VTS variables, plus a
-  maintained source-pinned module coverage matrix and contribution checklist.
-- Configuration-declared GeoIP2 aliases with main-scope final declaration
-  visibility, case-insensitive local names, conservative mixed-provider
-  collisions and source provenance, independent of filesystem policy loading.
-- Opaque Lua file/block and njs variable providers without executing scripts.
+- Support for Zstd, srcache, Echo and VTS variables, with built-in definitions of
+  their possible values, a coverage matrix listing reviewed source versions and
+  a contribution checklist.
+- Recognition of GeoIP2 variables declared in HTTP/stream main configuration,
+  including case-insensitive names and declarations after their uses. The last
+  GeoIP2 declaration wins; conflicting map/geo/njs/Perl declarations allow any
+  characters and retain all declaration locations, even with filesystem policy
+  loading disabled.
+- Recognition of Lua file/block and njs variable declarations, treating their
+  output as text that may contain any characters, without executing scripts.
 
 ### Fixed
-- Replace broad GeoIP, SSL and JWT trusted prefixes with exact or documented
-  dynamic models that preserve findings for opaque provider output.
+- Replace blanket trust of GeoIP, SSL and JWT prefixes with definitions for exact
+  names or documented prefixes. Values that may contain any characters,
+  including line breaks, remain subject to security checks.
 - Preserve Lua block destination arguments and treat Lua/Perl return values as
-  opaque rather than trusted; skip invalid includes inside GeoIP2 before I/O.
+  text that may contain any characters rather than assuming they are safe; skip
+  invalid includes inside GeoIP2 before I/O.
 - Limit return HTTP-splitting checks to redirect Location values, including URL
   shorthand; ordinary response body text retains resolution diagnostics.
 - Require a resolver for configuration-defined dynamic map/regex hosts, including
@@ -32,9 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.58] - 2026-10-25
 
 ### Added
-- Audit-owned layered variable catalogs: bundled, vendor, administrator and
-  explicitly selected directory models, with provenance and filesystem trust
-  checks for automatic system policy.
+- Layered variable definitions: built-in definitions, vendor files, administrator
+  files and explicitly selected directories. Each audit keeps its own catalog,
+  with definition locations and filesystem trust checks for automatic system
+  policy.
 - Conservative bundled `brotli_ratio` recognition, independent of target module
   installation, preserving HTTP-splitting and SSRF analysis.
 - `--load-default-vars` / `--no-default-vars`, canonical config/environment
@@ -42,10 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Keep quoted drop-in values literal and reject malformed entries without
-  erasing valid lower models; select exact names and longest prefixes
+  erasing valid lower-priority definitions; select exact names and longest prefixes
   deterministically within each layer.
-- Prevent custom model leakage across audits, pass startup policy to server
-  audits, and use the audit catalog in `missing_resolver`.
+- Keep custom variable definitions separate between audits, pass startup policy
+  to server audits, and use the audit catalog in `missing_resolver`.
 - Correct `vars-dirs` config examples to comma-separated scalar syntax.
 
 ### Changed
