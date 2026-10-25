@@ -5,10 +5,9 @@ description: "Supported NGINX module variables, their possible values, reviewed 
 
 # Module variable coverage
 
-> **Unreleased (main branch, next release):** This matrix describes the planned
-> next release after 0.2.58. The existing Brotli support and layered variable
-> definitions are already present in 0.2.58. No new release or package publication
-> is implied.
+> **Gixy 0.2.59:** The variables listed in this matrix are supported as of
+> 0.2.59. Brotli support and layered variable definitions were already available
+> in 0.2.58.
 
 Gixy recognizes the variables listed below and uses their possible values to
 check security: some contain numbers, some contain fixed cache status strings,
@@ -107,13 +106,13 @@ remain isolated.
 | [set-misc v0.33](https://github.com/openresty/set-misc-nginx-module/tree/v0.33) | Defer configurable destinations, decoders, binary output and configurable alphabets until their declarations and possible values are covered separately; no invented safe prefix |
 | [Memc v0.20](https://github.com/openresty/memc-nginx-module/tree/v0.20) | Defer five writable input slots and `flags_as_http_time`; needs separate definitions for writable inputs and returned values |
 | [Redis2 v0.15](https://github.com/openresty/redis2-nginx-module/tree/v0.15) | Reviewed registration source: no new module variables |
-| [headers-more v0.40](https://github.com/openresty/headers-more-nginx-module/tree/v0.40), [production v0.33](https://github.com/openresty/headers-more-nginx-module/tree/v0.33) | Reviewed registration source: no new module variables |
+| [headers-more v0.40](https://github.com/openresty/headers-more-nginx-module/tree/v0.40), [v0.33](https://github.com/openresty/headers-more-nginx-module/tree/v0.33) | Reviewed registration source: no new module variables |
 | [ModSecurity-nginx v1.0.4](https://github.com/owasp-modsecurity/ModSecurity-nginx/tree/v1.0.4) | Reviewed registration source: no new module variables |
-| [ngx-fancyindex v0.6.1](https://github.com/dvershinin/ngx-fancyindex/tree/v0.6.1) | Reviewed active production module registration source: no variables |
-| [length-hiding-filter 1.1.1](https://github.com/nulab/nginx-length-hiding-filter-module/tree/1.1.1) | Reviewed active production module registration source: no variables |
-| [ngx_dynamic_etag 0.2.3](https://github.com/dvershinin/ngx_dynamic_etag/tree/0.2.3) | Reviewed active production module registration source: no variables |
-| [ngx_ssl_handshake_padding 1.0.0](https://github.com/GetPageSpeed/ngx_ssl_handshake_padding/tree/332966bd2f7e7bc63a3d72d8df7d2f7abec48ff3) | Reviewed local tag source at commit `332966bd2f7e7bc63a3d72d8df7d2f7abec48ff3`: no variable registrations |
-| [ngx_immutable 0.0.7](https://github.com/GetPageSpeed/ngx_immutable/tree/6835dad555d48b9dfbcd829f51d351370c78e1b1) | Reviewed local tag source at commit `6835dad555d48b9dfbcd829f51d351370c78e1b1`: no variable registrations |
+| [ngx-fancyindex v0.6.1](https://github.com/dvershinin/ngx-fancyindex/tree/v0.6.1) | Reviewed module registration source: no variables |
+| [length-hiding-filter 1.1.1](https://github.com/nulab/nginx-length-hiding-filter-module/tree/1.1.1) | Reviewed module registration source: no variables |
+| [ngx_dynamic_etag 0.2.3](https://github.com/dvershinin/ngx_dynamic_etag/tree/0.2.3) | Reviewed module registration source: no variables |
+| [ngx_ssl_handshake_padding 1.0.0](https://github.com/GetPageSpeed/ngx_ssl_handshake_padding/tree/332966bd2f7e7bc63a3d72d8df7d2f7abec48ff3) | Reviewed source at commit `332966bd2f7e7bc63a3d72d8df7d2f7abec48ff3`: no variable registrations |
+| [ngx_immutable 0.0.7](https://github.com/GetPageSpeed/ngx_immutable/tree/6835dad555d48b9dfbcd829f51d351370c78e1b1) | Reviewed source at commit `6835dad555d48b9dfbcd829f51d351370c78e1b1`: no variable registrations |
 
 These decisions follow checks of variable registration and value-returning
 functions at the linked source versions. They make no claim about runtime
@@ -142,5 +141,4 @@ popularity or whether a module is installed on an audited host.
    against the installed package. Keep its Linux/root/container guard; never run
    its system-file fixtures on a workstation. Cover file/stdin/no-argument CLI,
    library/server and disabled policy. Record executed cases and skips.
-7. Update this matrix, translated variable docs, focused project rules and
-   Unreleased changelog. Release/publication remains a separate authorized step.
+7. Update this matrix, translated variable docs, focused project rules and changelog.

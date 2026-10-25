@@ -20,8 +20,9 @@ Gixy does not treat every name starting with `brotli_` as supported or safe.
 
 ## Module declarations and bundled coverage
 
-> **Unreleased (main branch, next release):** This section describes changes
-> after 0.2.58. The layered catalog behavior below is already available in 0.2.58.
+> **Gixy 0.2.59:** The module declarations and bundled definitions in this
+> section are available in 0.2.59. The layered catalog behavior below was
+> already available in 0.2.58.
 
 Built-in definitions now cover compression ratios, srcache statuses and expiry,
 Echo, VTS counters, the exact GeoIP and SSL names, and documented JWT claims/headers.
