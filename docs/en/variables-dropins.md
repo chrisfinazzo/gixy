@@ -14,6 +14,56 @@ This describes possible values; it does not prove that the target module is
 installed or loaded. Unknown names still produce diagnostic messages, and
 there is no blanket `brotli_` model.
 
+## Module declarations and bundled coverage
+
+> **Unreleased (main branch, next release):** This section describes changes
+> after 0.2.58. The layered catalog behavior below is already available in 0.2.58.
+
+Bundled models now cover compression ratios, srcache statuses/expiry, Echo,
+VTS counters, the exact GeoIP and SSL names, and documented JWT claims/headers.
+Models bound possible characters; recognition does not prove module availability.
+Opaque database, certificate, JWT and script output remains eligible for security
+findings. Unsupported names such as `$ssl_typo`, `$geoip_typo` and `$jwt_type`
+remain unknown. See the [source-pinned coverage matrix](module-variable-coverage.md).
+
+GeoIP2 aliases come from declarations in HTTP-main or stream-main configuration:
+
+```nginx
+http {
+    geoip2 /usr/share/GeoIP/country.mmdb {
+        $country default=US source=$remote_addr country iso_code;
+        $database_epoch metadata build_epoch;
+    }
+    server { proxy_set_header X-Country $country; }
+}
+```
+
+`$country` is opaque even with `iso_code` or `default=US`: runtime database
+values need not be country codes, and defaults are literal bytes, not expressions.
+Only exact `metadata build_epoch`, `metadata last_check` and `metadata last_change`
+forms get decimal bounds. Data aliases include empty, missing and default outcomes.
+Gixy never opens the database or evaluates source expressions to infer types.
+
+Local declared names are case-insensitive. The last GeoIP2 declaration in expanded
+source order wins throughout its main scope, including consumers before it.
+Outer includes retain normal policy controls; includes inside GeoIP2 are invalid
+and skipped before any filesystem or dump expansion. HTTP and stream scopes and
+separate audits stay isolated. Configuration declarations beat catalog drop-ins,
+even with system policy disabled.
+
+An overlapping main-scope map, geo, njs or Perl destination makes the alias opaque
+and produces a collision diagnostic with all declaration locations. Rename those
+destinations to establish unambiguous ownership. Local `set` assignments keep their
+ordinary inherited override behavior.
+
+`set_by_lua`, `set_by_lua_file`, `set_by_lua_block`, `perl_set`, `js_set` and
+`js_var` produce opaque provider-owned results. Script bodies and files are never
+executed or inspected for return values. A writable `js_var` initializer cannot
+permanently constrain its output. Configuration-defined dynamic proxy hosts need
+a resolver unless Gixy proves a literal IP or upstream; a regex model is never
+interpreted as a hostname.
+
+
 ## Layers and precedence
 
 Ordinary CLI scans, including no-argument and stdin scans, load these layers

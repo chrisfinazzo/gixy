@@ -213,13 +213,13 @@ class RawParser:
                 if directive_name.endswith("_lua_block"):
                     # Treat as a block with raw content preserved for tests/tools
                     raw = []
-                    if args and args[0]:
-                        raw = _tokenize_lua_content(args[0])
+                    if args and args[-1]:
+                        raw = _tokenize_lua_content(args[-1])
                     result.append(
                         {
                             "kind": "block",
                             "name": directive_name,
-                            "args": [],
+                            "args": args[:-1],
                             "children": [],
                             "raw": raw,
                             "line": node.get("line"),

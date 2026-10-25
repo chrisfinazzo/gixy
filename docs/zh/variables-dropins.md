@@ -12,6 +12,35 @@ Gixy 内置 NGINX 变量模型，包括第三方变量的精确名称 `$brotli_r
 模型描述可能的值，不证明目标模块已安装或加载。没有将整个 `brotli_` 前缀标为安全；
 未知变量仍会产生诊断信息。
 
+## 模块变量与配置声明
+
+> **尚未发布（main 分支，下个版本）：** 本节描述 0.2.58 之后的变更。
+> 下文的分层目录功能已在 0.2.58 中提供。
+
+内置模型涵盖压缩率、srcache、Echo、VTS 计数器、精确的 GeoIP/SSL 名称，
+以及已记录的 JWT claims/headers。模型只描述可能字符，不代表模块已安装。
+数据库、证书、JWT 和脚本的不透明输出仍保留安全检查。
+`$ssl_typo`、`$geoip_typo`、`$jwt_type` 等未支持名称仍为未知。
+参见[源码固定版本覆盖矩阵](../en/module-variable-coverage.md)。
+
+GeoIP2 可在 `http` 或 `stream` 主上下文直接声明任意别名。
+`default=US` 或 `country iso_code` 路径不能证明输出安全：数据库可能返回任意字节。
+默认值按字面量处理，不展开变量。仅精确的 `metadata build_epoch`、
+`metadata last_check`、`metadata last_change` 使用十进制字符界限。
+Gixy 不打开数据库，也不执行 `source=` 表达式。
+
+本地名称不区分大小写。外部 include 展开后，最后一个 GeoIP2 声明在整个主上下文
+生效，包括声明之前的使用位置。GeoIP2 内部的 include 无效，会在读取文件或展开
+转储之前跳过。HTTP/stream 上下文及不同审计彼此隔离；禁用系统策略加载时配置
+声明仍优先于目录模型。与 map/geo/njs/Perl 目标重名时采用不透明模型，并报告全部
+声明位置。局部 `set` 保留原有覆盖行为。
+
+`set_by_lua`、`set_by_lua_file`、`set_by_lua_block`、`perl_set`、`js_set`、
+`js_var` 的输出均不透明。不执行脚本或读取脚本文件；可写 `js_var` 的初值不是
+永久安全界限。配置定义的动态代理主机需要 resolver，除非能够证明是字面量 IP
+或 upstream；不会把正则表达式当作主机名。
+
+
 ## 层级与优先级
 
 普通 CLI（包括无参数及 stdin 扫描）按以下顺序加载，越靠后优先级越高：

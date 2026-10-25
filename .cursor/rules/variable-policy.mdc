@@ -38,3 +38,25 @@ alwaysApply: false
   @tests/core/test_variable_policy_trust.py, @tests/cli/test_variable_policy.py.
   Container-only @scripts/verify_variable_layers_linux.py proves installed
   no-argument CLI behavior; never run its filesystem mutations on the host.
+
+- @gixy/directives/block.py Geoip2Block exposes `declared_variables`, never
+  ordinary `provide_variables`. Manager finalizes direct HTTP/stream-main aliases
+  before sibling compilation; final GeoIP2 duplicate wins. Metadata narrowing
+  requires the exact documented two-argument form. Lookup paths/defaults do not
+  constrain arbitrary database UTF8/BYTES. Skip invalid inner includes before I/O.
+- Mixed GeoIP2/map/geo/njs/Perl main-scope destinations use audit-owned exact
+  node/name overrides, opaque output and aggregate provenance. Ignore captures
+  and map source keys. Local set overrides retain existing scope behavior.
+- Context local named keys are lowercase; preserve numeric captures, ctx keys,
+  original catalog lookup spelling and catalog case behavior.
+- Script provider output is `[\s\S]*`, including writable js_var regardless
+  of initializer. Preserve set_by_lua_block header args and opaque raw body;
+  do not execute scripts or read Lua files. njs nocache arity predates the
+  bundled crossplane table, so parser validates this pinned form directly.
+- @gixy/plugins/missing_resolver.py follows real dependencies to prove literals;
+  config-owned dynamic models require resolver. Catalog-only names retain their
+  unsupported behavior. Never classify stringified regexes as hostnames.
+- Update @docs/en/module-variable-coverage.md with source registration/getter
+  pins, defaults, scope, taint and regression proof for any new module model.
+  @tests/core/test_module_variables.py exercises these guarantees without
+  NGINX, module loading, databases or script execution.

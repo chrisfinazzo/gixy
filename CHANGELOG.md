@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Portable bundled models for Zstd, srcache, Echo and VTS variables, plus a
+  maintained source-pinned module coverage matrix and contribution checklist.
+- Configuration-declared GeoIP2 aliases with main-scope final declaration
+  visibility, case-insensitive local names, conservative mixed-provider
+  collisions and source provenance, independent of filesystem policy loading.
+- Opaque Lua file/block and njs variable providers without executing scripts.
+
+### Fixed
+- Replace broad GeoIP, SSL and JWT trusted prefixes with exact or documented
+  dynamic models that preserve findings for opaque provider output.
+- Preserve Lua block destination arguments and treat Lua/Perl return values as
+  opaque rather than trusted; skip invalid includes inside GeoIP2 before I/O.
+- Limit return HTTP-splitting checks to redirect Location values, including URL
+  shorthand; ordinary response body text retains resolution diagnostics.
+- Require a resolver for configuration-defined dynamic map/regex hosts, including
+  nested dependencies, while preserving catalog-only fallback behavior.
+
+### Changed
+- Publish Docker images only for published releases; master pushes retain image
+  builds and both smoke tests without logging into or publishing to registries.
+
 ## [0.2.58] - 2026-10-25
 
 ### Added

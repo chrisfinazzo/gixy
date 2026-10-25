@@ -167,6 +167,104 @@ def exercise_layers(work):
                 path.unlink()
 
 
+def exercise_modules(work):
+    """Verify installed CLI, library and server module behavior without policy."""
+    import io
+
+    from gixy.core.config import Config
+    from gixy.core.manager import Manager
+
+    for tainted in (False, True):
+        # Formatters aggregate identical reasons across locations. Distinct
+        # aliases keep all three raw findings independently observable in JSON.
+        sink = (
+            "add_header Country $country;\n"
+            "            proxy_set_header Script $script;\n"
+            "            proxy_pass http://$backend;"
+            if tainted
+            else "add_header Epoch $epoch;"
+        )
+        content = (
+            """http {
+          geoip2 /nonexistent.mmdb {
+            $country default=US country iso_code;
+            $backend custom bytes;
+            $epoch metadata build_epoch;
+          }
+          server { server_tokens off;
+            set_by_lua_block $script { return ngx.var.uri }
+            add_header Ratio $zstd_ratio;
+            add_header Count $vts_request_counter;
+            add_header Cache $srcache_fetch_status;
+            add_header Unknown $brotli_unknown_probe;
+            %s
+          }
+        }"""
+            % sink
+        )
+        expected = (
+            {"http_splitting": 3, "ssrf": 1, "missing_resolver": 1} if tainted else {}
+        )
+
+        def verify(label, issues, expected=expected, tainted=tainted):
+            counts = {}
+            for issue in issues:
+                name = issue["plugin"]
+                if name in ("http_splitting", "ssrf", "missing_resolver"):
+                    counts[name] = counts.get(name, 0) + 1
+            require(counts == expected, (label, counts, expected, issues))
+            print(json.dumps({"case": label, "tainted": tainted, "counts": counts}))
+
+        CONFIG.write_text(content)
+        file_path = work / "modules.conf"
+        file_path.write_text(content)
+        for mode, arguments, stdin in (
+            ("no-argument", [], None),
+            ("file", [str(file_path)], None),
+            ("stdin", ["-"], content),
+        ):
+            result = invoke(
+                ["--no-default-vars", "-f", "json"] + arguments, content=stdin
+            )
+            for name in (
+                "country",
+                "backend",
+                "epoch",
+                "script",
+                "zstd_ratio",
+                "vts_request_counter",
+                "srcache_fetch_status",
+            ):
+                require(
+                    "Can't find variable '%s'" % name not in result.stderr,
+                    result.stderr,
+                )
+            verify("modules-cli-" + mode, json.loads(result.stdout))
+        with Manager(Config(load_default_vars=False)) as manager:
+            manager.audit(str(file_path), io.StringIO(content), is_stdin=True)
+            issues = [
+                {"plugin": plugin.__class__.__name__}
+                for plugin in manager.results
+                for issue in plugin.issues
+            ]
+            verify("modules-library-disabled-policy", issues)
+        request = {
+            "id": 1,
+            "method": "analyze",
+            "content": content,
+            "vars_dirs": [str(VENDOR)],
+            "load_default_vars": True,
+        }
+        result = invoke(
+            ["--server", "--no-default-vars"], content=json.dumps(request) + "\n"
+        )
+        responses = [json.loads(line) for line in result.stdout.splitlines()]
+        require(
+            responses[0]["ready"] is True and responses[1]["error"] is None, responses
+        )
+        verify("modules-server-disabled-policy", responses[1]["issues"])
+
+
 def main():
     """Run independent installed-artifact checks or the complete layer proof."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -190,6 +288,7 @@ def main():
                 print(json.dumps(definition._asdict()))
         else:
             exercise_layers(work)
+            exercise_modules(work)
 
 
 if __name__ == "__main__":

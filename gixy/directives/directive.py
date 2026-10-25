@@ -181,7 +181,7 @@ class PerlSetDirective(Directive):
 
     @property
     def variables(self):
-        return [Variable(name=self.variable, provider=self, have_script=False)]
+        return [Variable(name=self.variable, value=Regexp(r"[\s\S]*"), provider=self)]
 
 
 class SetByLuaDirective(Directive):
@@ -189,13 +189,57 @@ class SetByLuaDirective(Directive):
     provide_variables = True
 
     def __init__(self, name, args):
-        super().__init__(name, args)
+        Directive.__init__(self, name, args)
         self.variable = args[0].lstrip("$")
         self.value = args[1]
 
     @property
     def variables(self):
-        return [Variable(name=self.variable, provider=self, have_script=False)]
+        return [Variable(name=self.variable, value=Regexp(r"[\s\S]*"), provider=self)]
+
+
+class SetByLuaFileDirective(Directive):
+    """Represent an opaque Lua file result without opening the file."""
+
+    nginx_name = "set_by_lua_file"
+    provide_variables = True
+    __init__ = SetByLuaDirective.__init__
+    variables = SetByLuaDirective.variables
+
+
+class JsSetDirective(Directive):
+    """Represent an njs callback result in documented declaration contexts."""
+
+    nginx_name = "js_set"
+    __init__ = SetByLuaDirective.__init__
+    variables = SetByLuaDirective.variables
+
+    @property
+    def provide_variables(self):
+        parents = list(self.parents)
+        if self.parent is None or self.parent.name not in (
+            "http",
+            "stream",
+            "server",
+            "location",
+        ):
+            return False
+        main = next((node for node in parents if node.name in ("http", "stream")), None)
+        if main is None or main.parent is None or main.parent.name is not None:
+            return False
+        return main.name == "http" or self.parent.name != "location"
+
+
+class JsVarDirective(Directive):
+    """Represent writable njs variables independently of their initializer."""
+
+    nginx_name = "js_var"
+    provide_variables = JsSetDirective.provide_variables
+    variables = SetByLuaDirective.variables
+
+    def __init__(self, name, args):
+        super().__init__(name, args)
+        self.variable = args[0].lstrip("$")
 
 
 class RewriteDirective(Directive):

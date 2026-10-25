@@ -57,17 +57,20 @@ class Context:
             name = int(name)
         else:
             var_type = "name"
+            name = name.lower()
 
         key = (var.ctx, name) if var.ctx else name
         self.variables[var_type][key] = var
         return self
 
     def get_var(self, name, ctx=None):
+        catalog_name = name
         if is_indexed_name(name):
             var_type = "index"
             name = int(name)
         else:
             var_type = "name"
+            name = name.lower()
 
         key = (ctx, name) if ctx else name
         result = None
@@ -78,7 +81,7 @@ class Context:
                 # Only named variables can be builtins
                 result = self.variables["name"].get(name) if ctx else None
                 if result is None:
-                    result = self.catalog.variable(name)
+                    result = self.catalog.variable(catalog_name)
 
         if not result:
             # Try again for a MapDirective (ctx is set): it may be another

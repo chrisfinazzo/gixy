@@ -6,13 +6,19 @@ from gixy.core import builtin_variables as builtins
 from gixy.core.config import Config
 from gixy.core.context import get_context, pop_context, purge_context, push_context
 from gixy.core.plugins_manager import PluginsManager
+from gixy.core.regexp import Regexp
+from gixy.core.variable import Variable
 from gixy.core.variable_catalog import load_variable_catalog
+from gixy.directives.block import GeoBlock, Geoip2Block, MapBlock, SetByLuaBlock
 from gixy.directives.directive import (
     AuthRequestSetDirective,
     MapDirective,
+    JsSetDirective,
+    JsVarDirective,
     PerlSetDirective,
     RootDirective,
     SetByLuaDirective,
+    SetByLuaFileDirective,
     SetDirective,
 )
 from gixy.parser.nginx_parser import NginxParser
@@ -22,6 +28,10 @@ SCOPE_STATIC_SET_DIRECTIVES = (
     AuthRequestSetDirective,
     PerlSetDirective,
     SetByLuaDirective,
+    SetByLuaFileDirective,
+    SetByLuaBlock,
+    JsSetDirective,
+    JsVarDirective,
 )
 
 LOG = logging.getLogger(__name__)
@@ -32,9 +42,12 @@ class Manager:
         self.root = None
         self.config = config or Config()
         self.auditor = PluginsManager(config=self.config)
+        self._declaration_overrides = {}
 
     def audit(self, file_path, file_data, is_stdin=False):
         LOG.debug(f"Audit config file: {file_path}")
+        self._declaration_overrides = {}
+        purge_context()
         catalog = load_variable_catalog(
             self.config.vars_dirs, self.config.load_default_vars
         )
@@ -78,6 +91,7 @@ class Manager:
         # Pre-populate scope-wide variables so nested blocks see `set`-like
         # directives that appear later in source order. Matches nginx's
         # parse-time variable registration (see issue #100).
+        self._prepare_scope_declarations(tree)
         self._prepopulate_scope_var_names(tree)
         self._prepopulate_scope_var_values(tree)
         for directive in tree:
@@ -89,6 +103,70 @@ class Manager:
                 self._audit_recursive(directive.children)
                 if directive.self_context:
                     pop_context()
+
+    def _prepare_scope_declarations(self, tree):
+        """Finalize GeoIP2 aliases before any sibling compiles a value.
+
+        Args:
+            tree (list): Expanded sibling nodes in the current context.
+        """
+        context = get_context()
+        main = context.block
+        if (
+            main.name not in ("http", "stream")
+            or main.parent is None
+            or main.parent.name is not None
+        ):
+            return
+        declarations = {}
+        for node in tree:
+            if isinstance(node, Geoip2Block):
+                for var in node.declared_variables:
+                    declarations.setdefault(var.name, []).append(var)
+        for name, aliases in declarations.items():
+            competitors = []
+            for node in tree:
+                if (
+                    isinstance(
+                        node,
+                        (
+                            MapBlock,
+                            GeoBlock,
+                            PerlSetDirective,
+                            JsSetDirective,
+                            JsVarDirective,
+                        ),
+                    )
+                    and node.provide_variables
+                    and node.variable.lower() == name
+                ):
+                    competitors.append(node)
+            selected = aliases[-1]
+            if competitors:
+                selected = Variable(
+                    name, Regexp(r"[\s\S]*"), provider=selected.provider
+                )
+                selected.depends = aliases[:-1] + [
+                    Variable(name, Regexp(r"[\s\S]*"), provider=node)
+                    for node in competitors
+                ]
+                LOG.warning(
+                    "Variable $%s provider collision at %s; rename overlapping "
+                    "GeoIP2/map/geo/script destinations to establish precedence",
+                    name,
+                    ", ".join(
+                        "%s:%s" % (node.file, node.line) for node in selected.providers
+                    ),
+                )
+                for node in competitors:
+                    self._declaration_overrides[(node, name)] = selected
+            context.add_var(name, selected)
+
+    def _selected_variable(self, directive, var):
+        """Apply only audit-owned, unscoped destination collision overrides."""
+        if var.ctx is None and isinstance(var.name, str):
+            return self._declaration_overrides.get((directive, var.name.lower()), var)
+        return var
 
     def _prepopulate_scope_var_names(self, tree):
         """Register placeholder names for every set-like var in this scope.
@@ -104,9 +182,12 @@ class Manager:
         """
         context = get_context()
         for directive in tree:
-            if isinstance(directive, SCOPE_STATIC_SET_DIRECTIVES):
+            if (
+                isinstance(directive, SCOPE_STATIC_SET_DIRECTIVES)
+                and directive.provide_variables
+            ):
                 name = directive.variable
-                if name not in context.variables["name"]:
+                if name.lower() not in context.variables["name"]:
                     context.add_var(name, builtins.fake_var(name))
             elif isinstance(directive, RootDirective):
                 if "document_root" not in context.variables["name"]:
@@ -127,9 +208,12 @@ class Manager:
         """
         context = get_context()
         for directive in tree:
-            if isinstance(directive, SCOPE_STATIC_SET_DIRECTIVES + (RootDirective,)):
+            if (
+                isinstance(directive, SCOPE_STATIC_SET_DIRECTIVES + (RootDirective,))
+                and directive.provide_variables
+            ):
                 for var in directive.variables:
-                    context.add_var(var.name, var)
+                    context.add_var(var.name, self._selected_variable(directive, var))
             elif directive.is_block and not directive.self_context:
                 # Register vars the block itself provides (e.g. IfBlock regex
                 # capture groups) before recursing, so nested set-like
@@ -141,7 +225,9 @@ class Manager:
                     for var in directive.variables:
                         if var.name == 0:
                             context.clear_index_vars()
-                        context.add_var(var.name, var)
+                        context.add_var(
+                            var.name, self._selected_variable(directive, var)
+                        )
                 self._prepopulate_scope_var_values(directive.children)
 
     def _update_variables(self, directive):
@@ -154,7 +240,7 @@ class Manager:
             if var.name == 0 and not isinstance(directive, MapDirective):
                 # All regexps must clean indexed variables
                 context.clear_index_vars()
-            context.add_var(var.name, var)
+            context.add_var(var.name, self._selected_variable(directive, var))
 
     def __enter__(self):
         return self

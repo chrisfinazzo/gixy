@@ -1,3 +1,5 @@
+import re
+
 try:
     from cached_property import cached_property
 except ImportError:
@@ -6,7 +8,7 @@ except ImportError:
 from gixy.core.exceptions import InvalidConfiguration
 from gixy.core.regexp import Regexp
 from gixy.core.variable import Variable, compile_script
-from gixy.directives.directive import Directive, MapDirective
+from gixy.directives.directive import Directive, MapDirective, SetByLuaDirective
 
 
 def get_overrides():
@@ -418,3 +420,50 @@ class GeoBlock(Block):
         for i in self.variables[0].value:
             mapblock_vars.append(str(i.value))
         return f"{self.nginx_name} {self.source} ${self.variable} {{"
+
+
+class Geoip2Block(Block):
+    """Expose aliases separately from ordinary traversal-time providers."""
+
+    nginx_name = "geoip2"
+
+    @property
+    def declared_variables(self):
+        if (
+            len(self.args) != 1
+            or self.parent is None
+            or self.parent.name not in ("http", "stream")
+            or self.parent.parent is None
+            or self.parent.parent.name is not None
+        ):
+            return []
+        result = []
+        for child in self.children:
+            if (
+                child.is_block
+                or re.fullmatch(r"\$[A-Za-z_][A-Za-z0-9_]*", child.name) is None
+            ):
+                continue
+            pattern = r"[\s\S]*"
+            if len(child.args) == 2 and child.args[0] == "metadata":
+                if child.args[1] == "build_epoch":
+                    pattern = r"[0-9]*"
+                elif child.args[1] in ("last_check", "last_change"):
+                    pattern = r"[-0-9]*"
+            result.append(
+                Variable(child.name[1:].lower(), Regexp(pattern), provider=child)
+            )
+        return result
+
+
+class SetByLuaBlock(Block):
+    """Expose a Lua block destination while leaving its body opaque."""
+
+    nginx_name = "set_by_lua_block"
+    self_context = False
+    provide_variables = True
+    variables = SetByLuaDirective.variables
+
+    def __init__(self, name, args):
+        super().__init__(name, args)
+        self.variable = args[0].lstrip("$")

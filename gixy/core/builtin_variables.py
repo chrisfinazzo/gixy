@@ -128,9 +128,8 @@ BUILTIN_VARIABLES = {
     "document_root": "/etc/nginx",
     # https://nginx.org/en/docs/http/ngx_http_geoip_module.html
     # https://nginx.org/en/docs/stream/ngx_stream_geoip_module.html
-    "geoip_": None,
     # https://nginx.org/en/docs/http/ngx_http_gzip_module.html#var_gzip_ratio
-    "gzip_ratio": None,
+    "gzip_ratio": r"[0-9.]*",
     # https://github.com/GetPageSpeed/ngx_brotli/blob/v0.1.4/filter/ngx_http_brotli_filter_module.c#L778-L816
     # Decimal output or absent: retain dots for conservative synthetic SSRF
     # analysis, while excluding CR/LF. This describes values, not module presence.
@@ -153,7 +152,6 @@ BUILTIN_VARIABLES = {
     # https://nginx.org/en/docs/http/ngx_http_limit_req_module.html#var_limit_req_status
     "limit_req_status": None,
     # https://nginx.org/en/docs/http/ngx_http_auth_jwt_module.html
-    "jwt_": None,
     # https://nginx.org/en/docs/http/ngx_http_browser_module.html#var_modern_browser
     "modern_browser": None,
     # https://nginx.org/en/docs/http/ngx_http_core_module.html#var_msec
@@ -219,7 +217,6 @@ BUILTIN_VARIABLES = {
     "spdy_request_priority": None,
     # https://nginx.org/en/docs/http/ngx_http_ssl_module.html
     # https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html
-    "ssl_": None,
     # https://nginx.org/en/docs/http/ngx_http_core_module.html#var_status
     # https://nginx.org/en/docs/http/ngx_http_log_module.html#var_status
     # https://nginx.org/en/docs/stream/ngx_stream_core_module.html#var_status
@@ -266,6 +263,104 @@ BUILTIN_VARIABLES = {
     # https://nginx.org/en/docs/http/ngx_http_upstream_module.html#var_upstream_status
     "upstream_status": None,
 }
+
+
+# Source-pinned module character bounds; see docs/en/module-variable-coverage.md.
+# Empty is permitted for not_found results. Opaque getters retain arbitrary bytes.
+BUILTIN_VARIABLES.update(
+    {
+        "zstd_ratio": r"[0-9.]*",
+        "srcache_fetch_status": r"BYPASS|MISS|HIT",
+        "srcache_store_status": r"BYPASS|STORE",
+        "srcache_expire": r"[-0-9]*",
+        "echo_timer_elapsed": r"[0-9.]*",
+        "echo_incr": r"[0-9]*",
+        "echo_response_status": r"[0-9]*",
+        "geoip_area_code": r"[-0-9]*",
+        "geoip_dma_code": r"[-0-9]*",
+        "ssl_session_id": r"[0-9a-f]*",
+        "ssl_client_fingerprint": r"[0-9a-f]*",
+        "ssl_session_reused": r"[r.]*",
+        "ssl_early_data": r"[1]*",
+        "ssl_client_v_remain": r"[0-9]*",
+        "ssl_preread_protocol": r"[A-Za-z0-9.]*",
+        "jwt_nowtime": r"[0-9]*",
+    }
+)
+for _name in [
+    "request_counter",
+    "in_bytes",
+    "out_bytes",
+    "1xx_counter",
+    "2xx_counter",
+    "3xx_counter",
+    "4xx_counter",
+    "5xx_counter",
+    "request_time_counter",
+    "request_time",
+    "cache_miss_counter",
+    "cache_bypass_counter",
+    "cache_expired_counter",
+    "cache_stale_counter",
+    "cache_updating_counter",
+    "cache_revalidated_counter",
+    "cache_hit_counter",
+    "cache_scarce_counter",
+]:
+    BUILTIN_VARIABLES["vts_" + _name] = r"[0-9]*"
+for _name in [
+    "echo_request_method",
+    "echo_client_request_method",
+    "echo_cacheable_request_uri",
+    "echo_request_uri",
+    "echo_request_body",
+    "echo_client_request_headers",
+    "echo_it",
+    "geoip_country_code",
+    "geoip_country_code3",
+    "geoip_country_name",
+    "geoip_org",
+    "geoip_city_continent_code",
+    "geoip_city_country_code",
+    "geoip_city_country_code3",
+    "geoip_city_country_name",
+    "geoip_region",
+    "geoip_region_name",
+    "geoip_city",
+    "geoip_postal_code",
+    "geoip_latitude",
+    "geoip_longitude",
+    "ssl_protocol",
+    "ssl_cipher",
+    "ssl_ciphers",
+    "ssl_curve",
+    "ssl_curves",
+    "ssl_sigalg",
+    "ssl_server_name",
+    "ssl_alpn_protocol",
+    "ssl_ech_status",
+    "ssl_ech_outer_server_name",
+    "ssl_client_cert",
+    "ssl_client_raw_cert",
+    "ssl_client_escaped_cert",
+    "ssl_client_s_dn",
+    "ssl_client_i_dn",
+    "ssl_client_s_dn_legacy",
+    "ssl_client_i_dn_legacy",
+    "ssl_client_serial",
+    "ssl_client_verify",
+    "ssl_client_v_start",
+    "ssl_client_v_end",
+    "ssl_client_sigalg",
+    "ssl_preread_server_name",
+    "ssl_preread_alpn_protocols",
+    "jwt_claim_",
+    "jwt_header_",
+    "jwt_headers",
+    "jwt_payload",
+    "jwt_claims",
+]:
+    BUILTIN_VARIABLES[_name] = r"[\s\S]*"
 
 
 def is_builtin(name):

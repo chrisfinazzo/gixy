@@ -22,7 +22,6 @@ Why inverse logic is superior:
 import re
 
 import gixy
-from gixy.core.context import get_context
 from gixy.core.variable import compile_script
 from gixy.directives.directive import is_ipv4, is_ipv6
 from gixy.plugins.plugin import Plugin
@@ -342,23 +341,48 @@ class missing_resolver(Plugin):
 
     def _resolve_host(self, host_str):
         """Resolve variables in host string. Returns None if unresolvable."""
-        try:
-            compiled = compile_script(host_str)
-        except Exception:
+        compiled = compile_script(host_str)
+        # Unknown names and catalog-only values keep the existing unsupported
+        # result. A config-owned opaque value is dynamic, never a regex string
+        # masquerading as a literal hostname.
+        if "$" in host_str and not any(var.name for var in compiled):
             return None
-
-        resolved = ""
+        resolved = []
         for var in compiled:
-            if (
-                var.provider is None
-                and var.name
-                and get_context().catalog.resolve(var.name) is not None
-            ):
+            if var.name and var.provider is None:
                 return None
-            if not isinstance(var.final_value, str):
+            literal = self._literal_value(var, set())
+            if literal is None:
+                return host_str
+            resolved.append(literal)
+        return "".join(resolved)
+
+    def _literal_value(self, var, seen):
+        """Recover only proven literal values through nested config providers."""
+        if id(var) in seen:
+            return None
+        seen = seen | {id(var)}
+        if var.regexp is not None:
+            return None
+        if isinstance(var.value, list):
+            values = []
+            for entry in var.value:
+                if entry.provider is None or entry.provider.dest_val is None:
+                    return None
+                parts = compile_script(entry.provider.dest_val, ctx=entry.ctx)
+                literals = [self._literal_value(part, seen) for part in parts]
+                if any(part is None for part in literals):
+                    return None
+                values.append("".join(literals))
+            return values[0] if values and len(set(values)) == 1 else None
+        if var.depends:
+            values = [self._literal_value(part, seen) for part in var.depends]
+            if any(part is None for part in values):
                 return None
-            resolved += var.final_value
-        return resolved
+            return "".join(values)
+        if isinstance(var.value, str) and "$" not in var.value:
+            return var.value
+        return None
 
     def _classify_host(self, host):
         """

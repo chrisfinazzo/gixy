@@ -2,6 +2,7 @@ import fnmatch
 import glob
 import logging
 import os
+import re
 
 from crossplane import analyzer as nginx_analyzer
 
@@ -172,6 +173,13 @@ class NginxParser:
                 continue
 
             if parsed_type == "include":
+                if parent.name == "geoip2":
+                    LOG.warning(
+                        "Skipping invalid include inside geoip2 at %s:%s",
+                        self.path_info,
+                        node.get("line"),
+                    )
+                    continue
                 # include is handled specially
                 path_info = self.path_info
                 self._resolve_include(node.get("args", []), parent)
@@ -234,6 +242,31 @@ class NginxParser:
         else:
             args = parsed_args
             term = ";"
+        # Crossplane's bundled njs arity predates optional nocache (0.8.7).
+        # Validate these source-pinned declaration forms before its stale table.
+        valid = None
+        if parsed_name == "js_set":
+            valid = len(args) == 2 or (len(args) == 3 and args[2] == "nocache")
+        elif parsed_name == "js_var":
+            valid = len(args) in (1, 2)
+        elif parsed_name == "set_by_lua_block":
+            valid = len(args) == 1
+        elif parsed_name == "set_by_lua_file":
+            valid = len(args) >= 2
+        if valid is not None:
+            valid = (
+                valid
+                and bool(args)
+                and re.fullmatch(r"\$[A-Za-z_][A-Za-z0-9_]*", args[0]) is not None
+            )
+            if not valid:
+                LOG.warning(
+                    "Skipping malformed %s declaration at %s:%s",
+                    parsed_name,
+                    self.path_info,
+                    parsed_line,
+                )
+            return not valid
         stmt = {"directive": parsed_name, "line": parsed_line, "args": list(args)}
         try:
             nginx_analyzer.analyze(
@@ -315,7 +348,7 @@ class NginxParser:
     def _resolve_file_include(self, pattern, parent):
         path = os.path.join(self.cwd, pattern)
         exists = False
-        for file_path in glob.iglob(path):
+        for file_path in sorted(glob.iglob(path)):
             if not os.path.exists(file_path):
                 continue
             exists = True
