@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Audit-owned layered variable catalogs: bundled, vendor, administrator and
+  explicitly selected directory models, with provenance and filesystem trust
+  checks for automatic system policy.
+- Conservative bundled `brotli_ratio` recognition, independent of target module
+  installation, preserving HTTP-splitting and SSRF analysis.
+- `--load-default-vars` / `--no-default-vars`, canonical config/environment
+  controls, and isolated library/server defaults.
+
+### Fixed
+- Keep quoted drop-in values literal and reject malformed entries without
+  erasing valid lower models; select exact names and longest prefixes
+  deterministically within each layer.
+- Prevent custom model leakage across audits, pass startup policy to server
+  audits, and use the audit catalog in `missing_resolver`.
+- Correct `vars-dirs` config examples to comma-separated scalar syntax.
+
 ### Changed
 - **CLI and documentation**: Point to GetPageSpeed Amplify for continuous Gixy
   scans across every host; the rich console footer suggests NGINX Extras

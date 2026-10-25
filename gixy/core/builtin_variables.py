@@ -1,10 +1,4 @@
-import logging
-import os
-
-from gixy.core.regexp import Regexp
 from gixy.core.variable import Variable
-
-LOG = logging.getLogger(__name__)
 
 BUILTIN_VARIABLES = {
     # https://nginx.org/en/docs/http/ngx_http_core_module.html#var_uri
@@ -137,6 +131,10 @@ BUILTIN_VARIABLES = {
     "geoip_": None,
     # https://nginx.org/en/docs/http/ngx_http_gzip_module.html#var_gzip_ratio
     "gzip_ratio": None,
+    # https://github.com/GetPageSpeed/ngx_brotli/blob/v0.1.4/filter/ngx_http_brotli_filter_module.c#L778-L816
+    # Decimal output or absent: retain dots for conservative synthetic SSRF
+    # analysis, while excluding CR/LF. This describes values, not module presence.
+    "brotli_ratio": r"[0-9.]*",
     # https://nginx.org/en/docs/http/ngx_http_v2_module.html#var_http2
     "http2": None,
     # https://nginx.org/en/docs/http/ngx_http_v3_module.html#var_http3
@@ -270,158 +268,25 @@ BUILTIN_VARIABLES = {
 }
 
 
-# Additional variables loaded from drop-in configuration files
-EXTRA_VARIABLES = {}
-
-
-def clear_custom_variables():
-    """Clear variables loaded from drop-in files (useful for tests)."""
-    EXTRA_VARIABLES.clear()
-
-
-def _normalize_value_token(token):
-    """Parse a token from a drop-in variable file into a usable value.
-
-    Supported forms:
-    - "" or '' → empty string (treated as not user-controlled)
-    - r'...'/r"..." → regex pattern string
-    - '...'/"..." → literal string
-    - none/null (case-insensitive) → None
-    - empty/missing value → empty string
-    Trailing commas are tolerated.
-    """
-    if token is None:
-        return ""
-
-    token = token.strip().rstrip(",").strip()
-    if token.lower() in ("none", "null"):
-        return None
-
-    # Strip possible raw prefix
-    if len(token) > 2 and token[0] in ("r", "R") and token[1] in ("'", '"'):
-        token = token[1:]
-
-    # Strip quotes
-    if len(token) >= 2 and token[0] == token[-1] and token[0] in ("'", '"'):
-        token = token[1:-1]
-
-    # For regex patterns we just return the inside content (without r/quotes)
-    return token
-
-
-def _parse_dropin_file(file_path):
-    """Parse a single drop-in file and return a dict of variables.
-
-    Each non-empty, non-comment line should be of the form:
-        name <value>
-    where value follows _normalize_value_token rules.
-    """
-    result = {}
-    try:
-        with open(file_path) as fh:
-            for raw_line in fh:
-                line = raw_line.strip()
-                if not line or line.startswith("#") or line.startswith(";"):
-                    continue
-
-                # Fast-path parse: find first whitespace after a valid identifier
-                i = 0
-                n = len(line)
-                # identifier start
-                c0 = line[0]
-                if not (c0.isalpha() or c0 == "_"):
-                    LOG.info(
-                        "Skip malformed custom variable line in %s: %r",
-                        file_path,
-                        raw_line.rstrip("\n"),
-                    )
-                    continue
-                i = 1
-                while i < n and (line[i].isalnum() or line[i] == "_"):
-                    i += 1
-                name = line[:i]
-                # skip spaces between name and value
-                j = i
-                while j < n and line[j].isspace():
-                    j += 1
-                value_token = line[j:]
-                # Allow optional separator characters between name and value
-                # If the line used name = value or name: value, drop the first char
-                if value_token[:1] in ("=", ":"):
-                    value_token = value_token[1:].strip()
-                result[name] = _normalize_value_token(value_token)
-    except Exception as e:
-        LOG.warning("Failed to load custom variables from %s: %s", file_path, e)
-    return result
-
-
-def load_custom_variables_from_dirs(paths):
-    """Load additional variables from provided directories.
-
-    - Reads all files with extensions .cfg or .conf
-    - Merges into EXTRA_VARIABLES (later files override earlier ones)
-    """
-    if not paths:
-        return
-    for base in paths:
-        if not base:
-            continue
-        expanded = os.path.expanduser(base)
-        if not os.path.isdir(expanded):
-            continue
-        try:
-            entries = sorted(os.listdir(expanded))
-        except OSError:
-            continue
-        for fname in entries:
-            if not (fname.endswith(".cfg") or fname.endswith(".conf")):
-                continue
-            fpath = os.path.join(expanded, fname)
-            if not os.path.isfile(fpath):
-                continue
-            parsed = _parse_dropin_file(fpath)
-            if parsed:
-                EXTRA_VARIABLES.update(parsed)
-
-
-def _iter_all_variable_items():
-    # EXTRA overrides BUILTIN on duplicates
-    # Preserve prefix variables (ending with '_') semantics
-    # Order: EXTRA first, then BUILTIN
-    for k, v in EXTRA_VARIABLES.items():
-        yield k, v
-    for k, v in BUILTIN_VARIABLES.items():
-        if k not in EXTRA_VARIABLES:
-            yield k, v
-
-
 def is_builtin(name):
-    if isinstance(name, int):
-        # Indexed variables can't be builtin
-        return False
-    for builtin, _ in _iter_all_variable_items():
-        if builtin.endswith("_"):
-            if name.startswith(builtin):
-                return True
-        elif name == builtin:
-            return True
-    return False
+    """Check the pure bundled catalog, excluding indexed captures."""
+    from gixy.core.variable_catalog import VariableCatalog
+
+    return VariableCatalog.bundled().resolve(name) is not None
 
 
 def builtin_var(name):
-    for builtin, regexp in _iter_all_variable_items():
-        if builtin.endswith("_"):
-            if not name.startswith(builtin):
-                continue
-        elif name != builtin:
-            continue
+    """Instantiate a variable from the pure bundled catalog."""
+    from gixy.core.variable_catalog import VariableCatalog
 
-        if regexp:
-            return Variable(
-                name=name, value=Regexp(regexp, strict=True, case_sensitive=False)
-            )
-        return Variable(name=name, value="builtin", have_script=False)
-    return None
+    return VariableCatalog.bundled().variable(name)
+
+
+def load_custom_variables_from_dirs(paths):
+    """Return an explicit catalog without changing process-global state."""
+    from gixy.core.variable_catalog import load_variable_catalog
+
+    return load_variable_catalog(paths)
 
 
 def fake_var(name):

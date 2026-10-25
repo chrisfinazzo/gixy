@@ -22,7 +22,7 @@ Why inverse logic is superior:
 import re
 
 import gixy
-import gixy.core.builtin_variables as builtins
+from gixy.core.context import get_context
 from gixy.core.variable import compile_script
 from gixy.directives.directive import is_ipv4, is_ipv6
 from gixy.plugins.plugin import Plugin
@@ -349,7 +349,11 @@ class missing_resolver(Plugin):
 
         resolved = ""
         for var in compiled:
-            if var.name and builtins.is_builtin(var.name):
+            if (
+                var.provider is None
+                and var.name
+                and get_context().catalog.resolve(var.name) is not None
+            ):
                 return None
             if not isinstance(var.final_value, str):
                 return None

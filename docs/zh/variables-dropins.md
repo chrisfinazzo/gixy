@@ -1,45 +1,85 @@
 ---
-title: "自定义变量与扩展"
-description: "用 drop-in 文件教会 Gixy 识别第三方 NGINX 变量，减少误报。支持 brotli、lua 等模块定义的变量，轻松扩展配置分析能力。"
+title: "变量与分层 Drop-in"
+description: "通过可信的分层策略文件描述第三方 NGINX 变量值。"
 ---
 
-### 自定义变量扩展（drop-ins）
+# 变量与 Drop-in
 
-一些第三方 NGINX 模块会定义额外的变量（例如 `$brotli_ratio`）。默认情况下，若 Gixy 无法解析某变量，会给出告警。你可以通过简单的扩展文件教会 Gixy 识别这些变量。
+Gixy 内置 NGINX 变量模型，包括第三方变量的精确名称 `$brotli_ratio`。
+保守模型 `[0-9.]*` 描述十进制输出或空值，排除 CR/LF 和 `/`，同时保留点号以维持
+保守的 SSRF 检测。依据是
+[ngx_brotli v0.1.4 getter](https://github.com/GetPageSpeed/ngx_brotli/blob/v0.1.4/filter/ngx_http_brotli_filter_module.c#L778-L816)。
+模型描述可能的值，不证明目标模块已安装或加载。没有将整个 `brotli_` 前缀标为安全；
+未知变量仍会产生诊断信息。
 
-#### 启用扩展
+## 层级与优先级
 
-使用 CLI 或配置文件提供一个或多个包含变量定义的目录：
+普通 CLI（包括无参数及 stdin 扫描）按以下顺序加载，越靠后优先级越高：
 
-- CLI：`--vars-dirs /etc/gixy/vars,~/.config/gixy/vars`
-- gixy.cfg：`vars-dirs = [/etc/gixy/vars, ~/.config/gixy/vars]`
+1. 内置模型。
+2. `/usr/share/gixy/vars.d` 中的供应商/模块定义。
+3. `/etc/gixy/vars.d` 中的管理员定义。
+4. `--vars-dirs` 显式目录，按提供顺序加载，后面的目录优先。
 
-上述目录中所有以 `.cfg` 或 `.conf` 结尾的文件都会被读取。
+每个目录是独立层。`.cfg` 和 `.conf` 文件按文件名字典序读取；同一键最后一个有效
+定义生效，同一文件中的重复定义也如此。无效条目会显示文件及行号警告，并保留此前
+或较低层的有效定义。
 
-#### 文件格式
+首先选中含有匹配项的最高层，再选精确名称，否则选择最长的 `_` 结尾匹配前缀。
+因此高层的 `http_` 可覆盖低层的 `http_host`。同层中精确名称高于前缀；对
+`$http_special_value`，`http_special_` 高于 `http_`。这修正了以前依赖插入顺序的
+前缀匹配歧义。被分析 NGINX 配置中定义的变量仍优先于模型目录。
 
-每一行（非空、非注释）定义一个变量：`name value`。支持的值形式：
+## 控制与隔离
 
-- 引号字面量：`'...'` 或 `"..."` → 作为常量（非用户可控）
-- 正则：`r'...'` 或 `r"..."` → 描述允许内容的正则表达式
-- `none`/`null`（不区分大小写）→ 标记为非用户可控
-- 值后允许保留一个逗号
-
-示例：
-
-```cfg
-# /etc/gixy/vars/nginx-module-brotli.cfg
-brotli_ratio none
-
-# /etc/gixy/vars/nginx-module-foo.cfg
-foo_host "example.com"
-foo_uri  r'/[^\s]*',
+```sh
+gixy --vars-dirs /etc/gixy/vars,~/.config/gixy/vars
 ```
 
-支持前缀变量：变量名以 `_` 结尾（类似内置变量），例如 `http_` 将匹配 `$http_foo`。
+```cfg
+# 逗号分隔的标量文本，不要加方括号
+vars-dirs = /etc/gixy/vars, ~/.config/gixy/vars
+load-default-vars = false
+```
 
-#### 说明
+`--no-default-vars` 关闭系统目录，保留内置及显式目录；`--load-default-vars` 开启
+系统目录。两个相反标志不能同时使用。规范配置键为 `load-default-vars`，环境变量为
+`GIXY_LOAD_DEFAULT_VARS=true` 或 `false`。优先级：CLI > 环境 > 配置 > 模式默认值。
+显式 `false` 不会丢失；`--write-config` 以规范布尔键保存该选择。显式目录始终高于
+启用的系统层。旧的 `/etc/gixy/vars` 和 `~/.config/gixy/vars` 仍可显式选用，但不会
+自动搜索。
 
-- 当变量名冲突时，扩展中的变量会覆盖内置变量；
-- 仅在分析期间被引用的变量才会被实例化；
-- 该机制只影响变量解析，不会改变 NGINX 的实际行为。
+库 `Config(load_default_vars=False)` 和 `--server` 默认仅使用内置模型。操作员可在
+启动时开启系统目录或传入 `vars_dirs`。单个服务器请求及上传的 NGINX 文本无法更改
+策略或选择策略路径。每次审计都会创建新目录并与本次子上下文共享，避免自定义模型
+跨审计泄漏。分析器仍有其他全局状态，因此不保证整体线程安全。
+
+## 文件格式与信任
+
+每行可为 `name value`、`name = value` 或 `name: value`。名称为 ASCII 标识符，不含
+`$`；以 `_` 结尾表示前缀。数字捕获变量不属于模型目录。忽略空行及 `#`/`;` 注释。
+
+```cfg
+foo_host "example.com"
+foo_literal 'a.b[$http_host]'
+foo_uri r'/[^\s]*',
+legacy_uri /[^\s]*
+operator_asserted_safe none
+```
+
+普通引号表示字面值，不进行变量插值、Python 转义解析或求值。`r'...'`/`r"..."` 表示
+正则；兼容旧的无引号正则。仅静态检查正则语法，绝不将提供的正则用于字符串匹配。
+允许尾随逗号。`none`、`null`（不区分大小写）、`''`、`""` 是明确的可信断言，表示
+值不受用户控制。这些断言可抑制安全发现，使用前应有依据。缺值、引号未闭合、名称
+错误及正则语法错误会被拒绝并警告，不会变成安全断言。
+
+自动系统策略要求所有祖先目录、策略目录及普通定义文件均归 root 所有，且组和其他
+用户不可写。拒绝符号链接，包括祖先路径中的链接。支持的 POSIX 平台使用持有的
+no-follow 文件描述符防止路径竞争；无法安全加载的平台会警告并跳过系统策略。
+可选目录不存在时不报错，扫描不会创建目录。
+
+显式路径是操作员的可信选择，支持 `~`，非 root 用户也可使用。缺失、不可读或无效的
+显式文件会警告。不会隐式搜索当前目录或用户目录。模块 RPM 可提供 root:root/0644
+普通供应商数据而无需依赖 Gixy；共享供应商目录属性为 root:root/0755。管理员覆盖
+放在 `/etc/gixy/vars.d`。移除模块定义后回退至内置模型。策略仅影响分析，不改变
+NGINX 行为或模块启用状态。

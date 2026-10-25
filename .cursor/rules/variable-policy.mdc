@@ -1,0 +1,40 @@
+---
+description: Audit-owned variable policy, filesystem trust, and configuration controls
+globs: gixy/core/*variable*.py,gixy/core/context.py,gixy/core/manager.py,gixy/cli/*.py
+alwaysApply: false
+---
+
+# Variable policy
+
+- @gixy/core/variable_catalog.py materializes a fresh catalog for each
+  @gixy/core/manager.py audit. @gixy/core/context.py child contexts share that
+  catalog; custom policy must never accumulate in process-global state.
+- Layers: bundled < vendor < administrator < explicit directories in order.
+  Choose highest matching layer, then exact name, then longest `_` prefix.
+  Sorted `.cfg`/`.conf` filenames and later valid lines determine duplicates.
+  Keep source path, line, and layer. Config-defined variables win first.
+- @gixy/core/builtin_variables.py describes possible values, not module loading.
+  Keep exact `brotli_ratio` as `[0-9.]*` to exclude CR/LF while retaining SSRF
+  analysis. Never introduce a blanket safe module prefix.
+- Ordinary quotes are literal, without script expansion, evaluation or Python
+  unescaping. Raw quotes and legacy unquoted values are regexes. Validate regex
+  syntax statically; never execute supplied regexes against strings. Missing
+  or invalid entries warn and retain lower valid definitions. Empty/none/null
+  are explicit trusted assertions, not malformed-value fallbacks.
+- Automatic system policy requires root ownership, no group/world write bits,
+  regular files, safe ancestors, and no symlinks. Hold no-follow descriptors
+  through validation and reads. Missing optional directories are quiet; scans
+  create none. Explicit directories are operator-selected trust, support `~`,
+  and work for non-root users with actionable warnings on failure.
+- @gixy/cli/argparser.py uses one alias-aware tri-state DefaultVarsAction for
+  `--load-default-vars`/`--no-default-vars`. Canonical config/env setting is
+  `load-default-vars`/`GIXY_LOAD_DEFAULT_VARS`. Preserve CLI > env > config > mode,
+  including false and write-config roundtrips. Reject opposite CLI flags.
+- CLI defaults to system discovery; library/server default false. Server startup
+  passes vars_dirs/load_default_vars to Config; request data cannot change them.
+  Append new Config arguments to retain positional compatibility. Python 3.6
+  remains supported. Do not claim general analyzer thread safety.
+- Tests: @tests/core/test_layered_variables.py,
+  @tests/core/test_variable_policy_trust.py, @tests/cli/test_variable_policy.py.
+  Container-only @scripts/verify_variable_layers_linux.py proves installed
+  no-argument CLI behavior; never run its filesystem mutations on the host.

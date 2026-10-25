@@ -2,6 +2,8 @@
 
 # flake8: noqa
 
+import argparse
+
 from configargparse import *
 from io import StringIO
 
@@ -99,6 +101,22 @@ class GixyHelpFormatter(HelpFormatter):
         return help_message
 
 
+class DefaultVarsAction(argparse.Action):
+    """Retain an unspecified state and handle both policy flag aliases."""
+
+    def __init__(self, option_strings, dest, **kwargs):
+        super().__init__(option_strings, dest, nargs=0, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        value = option_string == "--load-default-vars"
+        previous = getattr(namespace, self.dest)
+        if previous is not None and previous != value:
+            parser.error(
+                "--load-default-vars and --no-default-vars cannot be used together"
+            )
+        setattr(namespace, self.dest, value)
+
+
 class ArgsParser(ArgumentParser):
     """Custom argument parser for Gixy."""
 
@@ -107,6 +125,8 @@ class ArgsParser(ArgumentParser):
         what their keys will be. It returns a list of zero or more config keys that
         can be used to set the given action's value in a config file.
         """
+        if isinstance(action, DefaultVarsAction):
+            return ["load-default-vars", "--load-default-vars"]
         keys = []
         for arg in action.option_strings:
             if arg in ["--config", "--write-config", "--version"]:
@@ -115,6 +135,20 @@ class ArgsParser(ArgumentParser):
                 keys += [arg[2:], arg]  # eg. for '--bla' return ['bla', '--bla']
 
         return keys
+
+    def convert_item_to_command_line_arg(self, action, key, value):
+        """Translate the canonical boolean setting to one policy flag alias."""
+        if isinstance(action, DefaultVarsAction):
+            if isinstance(value, str):
+                normalized = value.lower()
+                if normalized in ("true", "yes", "on", "1"):
+                    return ["--load-default-vars"]
+                if normalized in ("false", "no", "off", "0"):
+                    return ["--no-default-vars"]
+            self.error(
+                "{} must be a boolean (true/false, yes/no, on/off, 1/0)".format(key)
+            )
+        return super().convert_item_to_command_line_arg(action, key, value)
 
     def get_items_for_config_file_output(self, source_to_settings, parsed_namespace):
         """Converts the given settings back to a dictionary that can be passed
@@ -167,6 +201,14 @@ class ArgsParser(ArgumentParser):
                         config_file_items[section][key] = (value, action.help)
                     else:
                         config_file_items[key] = (value, action.help)
+        # Preserve an explicit choice from every source, including false and
+        # environment-only choices. Emit one canonical key for both aliases.
+        if parsed_namespace.load_default_vars is not None:
+            config_file_items.pop("--load-default-vars", None)
+            config_file_items["load-default-vars"] = (
+                str(parsed_namespace.load_default_vars).lower(),
+                "Load trusted system variable policy (CLI default true; server default false).",
+            )
         return config_file_items
 
 

@@ -7,7 +7,7 @@ import os
 import sys
 
 import gixy
-from gixy.cli.argparser import create_parser
+from gixy.cli.argparser import DefaultVarsAction, create_parser
 from gixy.core.config import Config
 from gixy.core.exceptions import InvalidConfiguration
 from gixy.core.manager import Manager as Gixy
@@ -286,6 +286,15 @@ def _get_cli_parser():
     )
 
     parser.add_argument(
+        "--load-default-vars",
+        "--no-default-vars",
+        dest="load_default_vars",
+        action=DefaultVarsAction,
+        default=None,
+        help="Load trusted system variable policy (CLI default: enabled; server: disabled)",
+    )
+
+    parser.add_argument(
         "--vars-dirs",
         dest="vars_dirs",
         type=str,
@@ -367,6 +376,14 @@ def _get_cli_parser():
 def main():
     parser = _get_cli_parser()
     args = parser.parse_args()
+    load_default_vars = (
+        args.load_default_vars
+        if args.load_default_vars is not None
+        else not args.server
+    )
+    vars_dirs = (
+        [x.strip() for x in args.vars_dirs.split(",")] if args.vars_dirs else None
+    )
     _init_logger(args.debug)
 
     if args.server:
@@ -378,6 +395,8 @@ def main():
         config = Config(
             severity=severity,
             allow_includes=not args.disable_includes,
+            vars_dirs=vars_dirs,
+            load_default_vars=load_default_vars,
         )
         from gixy.cli.server import run_server
 
@@ -432,9 +451,8 @@ def main():
         plugins=checks,
         skips=skips,
         allow_includes=not args.disable_includes,
-        vars_dirs=[x.strip() for x in args.vars_dirs.split(",")]
-        if args.vars_dirs
-        else None,
+        vars_dirs=vars_dirs,
+        load_default_vars=load_default_vars,
     )
 
     # Top-level --nginx-version aliases the auto-generated

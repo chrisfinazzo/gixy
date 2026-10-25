@@ -9,12 +9,10 @@ from gixy.directives.block import Root
 
 def setup_function():
     push_context(Root())
-    builtins.clear_custom_variables()
 
 
 def teardown_function():
     purge_context()
-    builtins.clear_custom_variables()
 
 
 def test_literal():
@@ -115,16 +113,16 @@ def test_custom_variable_dropin_literal_and_regex(tmp_path):
     # Regex value with raw marker
     (d / "nginx-module-bar.cfg").write_text("foo_uri  r'/[^\\s]*',\n")
 
-    builtins.load_custom_variables_from_dirs([str(d)])
+    catalog = builtins.load_custom_variables_from_dirs([str(d)])
 
     # foo_host is treated as non-user-controlled: cannot contain newline
-    v1 = builtins.builtin_var("foo_host")
+    v1 = catalog.variable("foo_host")
     assert v1 is not None
     assert not v1.can_contain("\n")
-    assert not v1.must_contain(".")
+    assert v1.must_contain(".")
 
     # foo_uri is regex: must start with '/'; cannot contain newlines
-    v2 = builtins.builtin_var("foo_uri")
+    v2 = catalog.variable("foo_uri")
     assert v2 is not None
     assert v2.must_startswith("/")
     assert not v2.can_contain("\n")

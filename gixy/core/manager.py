@@ -6,6 +6,7 @@ from gixy.core import builtin_variables as builtins
 from gixy.core.config import Config
 from gixy.core.context import get_context, pop_context, purge_context, push_context
 from gixy.core.plugins_manager import PluginsManager
+from gixy.core.variable_catalog import load_variable_catalog
 from gixy.directives.directive import (
     AuthRequestSetDirective,
     MapDirective,
@@ -34,13 +35,9 @@ class Manager:
 
     def audit(self, file_path, file_data, is_stdin=False):
         LOG.debug(f"Audit config file: {file_path}")
-        # Load custom variables if configured
-        try:
-            vars_dirs = getattr(self.config, "vars_dirs", None)
-            if vars_dirs:
-                builtins.load_custom_variables_from_dirs(vars_dirs)
-        except Exception as e:
-            LOG.debug("Custom variables loading failed: %s", e)
+        catalog = load_variable_catalog(
+            self.config.vars_dirs, self.config.load_default_vars
+        )
         parser = NginxParser(
             cwd=os.path.dirname(file_path) if not is_stdin else "",
             allow_includes=self.config.allow_includes,
@@ -54,7 +51,8 @@ class Manager:
             # Prefer path-based parsing to avoid temporary files
             self.root = parser.parse_file(file_path)
 
-        push_context(self.root)
+        purge_context()
+        push_context(self.root, catalog=catalog)
         self._audit_recursive(self.root.children)
         # Call post_audit hooks after all directives have been processed
         self.auditor.post_audit(self.root)

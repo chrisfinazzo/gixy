@@ -11,6 +11,7 @@ class Config:
         output_file=None,
         allow_includes=True,
         vars_dirs=None,
+        load_default_vars=False,
     ):
         self.severity = severity
         self.output_format = output_format
@@ -19,6 +20,7 @@ class Config:
         self.skips = skips
         self.allow_includes = allow_includes
         self.vars_dirs = vars_dirs
+        self.load_default_vars = load_default_vars
         self.plugins_options = {}
 
     def set_for(self, name, options):

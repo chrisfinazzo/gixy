@@ -16,8 +16,10 @@ def purge_context():
     del CONTEXTS[:]
 
 
-def push_context(block):
-    if len(CONTEXTS):
+def push_context(block, catalog=None):
+    if catalog is not None:
+        context = Context(catalog)
+    elif len(CONTEXTS):
         context = copy.deepcopy(get_context())
     else:
         context = Context()
@@ -31,7 +33,10 @@ def pop_context():
 
 
 class Context:
-    def __init__(self):
+    def __init__(self, catalog=None):
+        from gixy.core.variable_catalog import VariableCatalog
+
+        self.catalog = catalog if catalog is not None else VariableCatalog.bundled()
         self.block = None
         self.variables = {"index": {}, "name": {}}
 
@@ -71,10 +76,9 @@ class Context:
         except KeyError:
             if var_type == "name":
                 # Only named variables can be builtins
-                import gixy.core.builtin_variables as builtins
-
-                if builtins.is_builtin(name):
-                    result = builtins.builtin_var(name)
+                result = self.variables["name"].get(name) if ctx else None
+                if result is None:
+                    result = self.catalog.variable(name)
 
         if not result:
             # Try again for a MapDirective (ctx is set): it may be another
@@ -96,6 +100,7 @@ class Context:
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
+        result.catalog = self.catalog
         result.block = copy.copy(self.block)
         result.variables = {
             "index": copy.copy(self.variables["index"]),

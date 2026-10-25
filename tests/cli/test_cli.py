@@ -126,6 +126,7 @@ def test_cli_main_runs_with_plugin_options(monkeypatch):
     # Ensure that config was constructed and contains plugin options for origins
     config = captured.get("config")
     assert config is not None
+    assert config.load_default_vars is True
     origins_opts = config.get_for("origins")
     # Expect that domains has been split into a list
     assert origins_opts.get("domains") == ["example.com", "foo.bar"]
