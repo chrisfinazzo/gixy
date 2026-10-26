@@ -1,6 +1,6 @@
 ---
 description: Conservative proofs for regex, map, cipher, proxy and version checks
-globs: gixy/plugins/regex_redos.py,gixy/plugins/weak_ssl_tls.py,gixy/plugins/http_splitting.py,gixy/plugins/quic_bpf_reuseport.py,gixy/core/variable.py,gixy/core/config.py
+globs: gixy/plugins/regex_redos.py,gixy/plugins/weak_ssl_tls.py,gixy/plugins/http_splitting.py,gixy/plugins/quic_bpf_reuseport.py,gixy/core/variable.py,gixy/core/config.py,gixy/core/nginx_flavors.py,gixy/cli/nginx_version.py
 alwaysApply: false
 ---
 
@@ -17,9 +17,18 @@ alwaysApply: false
 - @gixy/plugins/http_splitting.py proves proxy URI safety over every local
   rewrite path, including `break` skipping a later `return`. Directive source
   order is not proxy execution order. Unsupported mutations remain warnings.
-- @gixy/core/config.py resolves one explicit nginx version for both CVE and
-  QUIC checks. Global input wins over the legacy CVE version fallback; absent
-  or invalid input remains unknown. Never probe installed software.
+- @gixy/core/config.py shares one target identity for CVE and QUIC checks.
+  Global input wins over the legacy fallback; invalid or failed `auto` remains
+  unknown. Core/library paths never execute subprocesses.
+- Only the local CLI's explicit `nginx-version = auto` opt-in may run
+  @gixy/cli/nginx_version.py's bounded `nginx -V` probe, once before Config and
+  the file loop. Reject auto in server mode before readiness; help/version/
+  write-config never probe. Keep diagnostics on stderr.
+- @gixy/core/nginx_flavors.py validates the packaged JSON registry and parses
+  only version-banner lines. Preserve the advertised version. Unknown banners
+  use upstream rules; explicit flavor wins. Vendor suppression requires a
+  known version at/after an exact check/CVE key's evidenced fix threshold.
+  Do not add code branches for individual vendors or package-manager queries.
 - @scripts/check_analyzer_proof_mutations.py runs bounded security-proof
   mutations in temporary source copies. Each mutant must fail an observed
   assertion, never merely fail to import or collect.

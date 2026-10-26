@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Opt-in local NGINX version/flavor detection with `nginx-version = auto`,
+  shared across version-aware checks and scanned files, plus explicit
+  `nginx-flavor` overrides for offline targets. Detection is bounded,
+  disabled by default and rejected in server mode.
+- Bundled, validated flavor fix evidence; recognize the nginx-mod banner and
+  its QUIC reload backport from advertised version 1.30.6 without suppressing
+  unrelated checks or CVEs or changing the advertised upstream version.
+
 ## [0.2.59] - 2026-10-25
 
 ### Added

@@ -1,2 +1,3 @@
 include gixy/formatters/templates/*
 graft tests
+include gixy/data/nginx-flavors.json

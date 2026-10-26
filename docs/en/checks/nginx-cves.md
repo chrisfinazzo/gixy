@@ -17,8 +17,25 @@ analyzer and has no view of the binary).
 
 The explicit `--nginx-version` also informs the QUIC BPF reload check. The
 older `--nginx-cves-version` option remains a shared fallback when the global
-option is absent. An invalid version remains unknown; Gixy never probes the
-installed binary or packages.
+option is absent. An invalid version remains unknown.
+
+To opt into detecting the local binary once for all scanned files and checks,
+use `--nginx-version=auto` or `nginx-version = auto` in Gixy's config. This runs
+`nginx -V` from `PATH` with a five-second timeout and recognizes the advertised
+version and bundled flavor. Opting in asserts that this binary is the target;
+use an explicit version for offline or remote scans. Detection is disabled by
+default and rejected in `--server` mode. Failures warn on stderr and keep the
+version unknown, blocking the legacy fallback. No packages or feeds are queried.
+
+Use `--nginx-flavor=nginx-mod` with an explicit version for an offline vendor
+build, or `--nginx-flavor=upstream` to force upstream rules over detection.
+Unknown vendor banners use upstream rules; invalid explicit flavor names fail.
+Bundled flavor fixes apply only to exact CVE IDs at or after their recorded fix
+version. All other affected ranges and configuration triggers still apply.
+The initial `nginx-mod` data records only the QUIC reload fix at 1.30.6 and has
+no CVE exemptions. The real advertised version is preserved. Identity and
+`--debug` fix diagnostics go to stderr, keeping JSON stdout clean. See
+[target version configuration](../configuration.md#target-nginx-version-and-flavor).
 
 Pure binary-level CVEs are reported whenever the supplied version falls
 in an affected range. CVEs tied to a module or configuration pattern are

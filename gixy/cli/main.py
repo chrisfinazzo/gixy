@@ -8,6 +8,8 @@ import sys
 
 import gixy
 from gixy.cli.argparser import DefaultVarsAction, create_parser
+from gixy.cli.nginx_version import resolve_identity
+from gixy.core.nginx_flavors import load_definitions
 from gixy.core.config import Config
 from gixy.core.exceptions import InvalidConfiguration
 from gixy.core.manager import Manager as Gixy
@@ -197,6 +199,10 @@ def _create_plugin_help(plugin_cls, opt_key, option):
 
 def _get_cli_parser():
     parser = create_parser()
+    try:
+        flavors = load_definitions()
+    except ValueError as error:
+        parser.error(str(error))
     parser.add_argument(
         "nginx_files",
         nargs="*",
@@ -338,11 +344,18 @@ def _get_cli_parser():
         dest="nginx_version",
         type=str,
         default=None,
-        metavar="X.Y.Z",
+        metavar="X.Y.Z|auto",
         help=(
-            "Explicit upstream nginx Open Source version (e.g. 1.31.7) "
-            "shared by version-aware checks. No installed version is detected."
+            "Target nginx version (e.g. 1.31.7), shared by version-aware checks. "
+            "Use auto to opt into local nginx -V detection (unavailable with --server)."
         ),
+    )
+
+    parser.add_argument(
+        "--nginx-flavor",
+        choices=tuple(flavors),
+        default=None,
+        help="Target flavor override; otherwise detected flavor or upstream rules",
     )
 
     group = parser.add_argument_group("check options")
@@ -385,6 +398,14 @@ def main():
     )
     _init_logger(args.debug)
 
+    if args.server and args.nginx_version == "auto":
+        parser.error(
+            "--nginx-version=auto is unavailable with --server; supply an explicit target version"
+        )
+    args.nginx_version, args.nginx_flavor = resolve_identity(
+        args.nginx_version, args.nginx_flavor, load_definitions()
+    )
+
     if args.server:
         try:
             severity = gixy.severity.ALL[args.level]
@@ -397,6 +418,7 @@ def main():
             vars_dirs=vars_dirs,
             load_default_vars=load_default_vars,
             nginx_version=args.nginx_version,
+            nginx_flavor=args.nginx_flavor,
         )
         legacy_version = getattr(args, "nginx_cves:version", None)
         if legacy_version is not None:
@@ -457,6 +479,7 @@ def main():
         vars_dirs=vars_dirs,
         load_default_vars=load_default_vars,
         nginx_version=args.nginx_version,
+        nginx_flavor=args.nginx_flavor,
     )
 
     # Top-level --deep enables the current deep-capable check while preserving

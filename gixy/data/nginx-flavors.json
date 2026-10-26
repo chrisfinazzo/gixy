@@ -1,0 +1,21 @@
+[
+  {
+    "flavor": "upstream",
+    "banner_prefix": "nginx/",
+    "fixed_in": {}
+  },
+  {
+    "flavor": "nginx-mod",
+    "banner_prefix": "nginx-mod by GetPageSpeed.com/",
+    "fixed_in": {
+      "quic_bpf_reuseport": {
+        "version": "1.30.6",
+        "sources": [
+          "https://bitbucket.org/danila_vershinin/nginx-mod/commits/207c5029e82cebaabc73aa0d17f9f1da2eaeadb3",
+          "https://bitbucket.org/danila_vershinin/nginx-mod/commits/efd4041e097e8d30931178d8ff1691ac64cd13a7",
+          "https://bitbucket.org/danila_vershinin/nginx-mod/commits/4278150"
+        ]
+      }
+    }
+  }
+]

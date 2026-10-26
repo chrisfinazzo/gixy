@@ -209,6 +209,12 @@ class ArgsParser(ArgumentParser):
                 str(parsed_namespace.load_default_vars).lower(),
                 "Load trusted system variable policy (CLI default true; server default false).",
             )
+        for name in ("nginx_version", "nginx_flavor"):
+            value = getattr(parsed_namespace, name)
+            if value is not None:
+                key = name.replace("_", "-")
+                config_file_items.pop("--" + key, None)
+                config_file_items[key] = (value, None)
         return config_file_items
 
 

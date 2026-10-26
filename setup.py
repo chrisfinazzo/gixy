@@ -65,6 +65,7 @@ setup(
         "Programming Language :: Python :: 3.13",
     ],
     include_package_data=True,
+    package_data={"gixy": ["data/nginx-flavors.json"]},
     extras_require={
         "deep": deep_requires,
         "tests": install_requires + deep_requires + tests_requires,

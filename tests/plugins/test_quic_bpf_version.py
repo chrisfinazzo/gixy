@@ -89,3 +89,17 @@ def test_server_startup_shares_only_explicit_version(flags, expected):
         sum(issue["plugin"] == "quic_bpf_reuseport" for issue in responses[1]["issues"])
         == expected
     )
+
+
+@pytest.mark.parametrize(
+    "version,flavor,expected",
+    [
+        ("1.30.6", "nginx-mod", 0),
+        ("1.30.5", "nginx-mod", 1),
+        ("1.30.6", "upstream", 1),
+        ("1.31.7", "upstream", 0),
+        (None, "nginx-mod", 1),
+    ],
+)
+def test_flavor_specific_quic_fix(version, flavor, expected):
+    assert _quic_count(Config(nginx_version=version, nginx_flavor=flavor)) == expected

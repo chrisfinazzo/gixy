@@ -65,6 +65,8 @@ class nginx_cves(Plugin):
             cve: CVE record from the ``CVES`` tuple.
             root: Root Block of the parsed config.
         """
+        if self.audit_context.nginx_has_fix(cve["id"]):
+            return
         affected_oss = cve["affected_oss"]
         if affected_oss is None:
             return

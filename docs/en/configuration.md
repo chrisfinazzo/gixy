@@ -18,6 +18,59 @@ Configuration files use simple `key = value` pairs, optional sections, and suppo
 
 Note: the severity filter is CLI-only via `-l` repeats (e.g. `-l`, `-ll`, `-lll`). It is not read from the config file.
 
+## Target NGINX version and flavor
+
+By default Gixy does not run NGINX or discover its installed version. The CVE
+advisor stays silent without a known version; the QUIC BPF check retains its
+conditional warning. Supply the version of the binary that will load the config:
+
+```sh
+gixy --nginx-version=1.30.6 --nginx-flavor=nginx-mod /path/to/nginx.conf
+```
+
+To opt into detecting the local `nginx` executable on `PATH`, set:
+
+```ini
+nginx-version = auto
+```
+
+Plain `gixy` then runs `nginx -V` once per invocation, with a five-second timeout,
+for all scanned files and version-aware checks. Opting in asserts that this local
+binary is the intended target. For offline or remote scans, supply the target's
+explicit version or leave it unknown. Detection does not run for help, version
+output or `--write-config`; library configuration never runs a subprocess.
+`--server` rejects `auto` before emitting readiness, but accepts an explicit
+numeric version and flavor at startup.
+
+The recognized flavors are `upstream` and `nginx-mod`. The banner
+`nginx version: nginx-mod by GetPageSpeed.com/1.30.6` selects `nginx-mod`.
+Unknown vendor banners with a valid version use upstream rules. An explicit
+`nginx-flavor = upstream` or `--nginx-flavor=upstream` overrides detection;
+`nginx-flavor = nginx-mod` also works with an explicit version for offline scans.
+An unknown explicit flavor is an error. No flavor setting defaults to upstream
+rules unless detection recognizes another flavor.
+
+Both settings support environment variables `GIXY_NGINX_VERSION` and
+`GIXY_NGINX_FLAVOR`. For each setting, CLI arguments override environment
+variables, which override config files. The shared `nginx-version` overrides
+legacy `nginx-cves-version`; that fallback applies only when the shared setting
+is absent. Failed `auto` therefore remains unknown even if a legacy version is
+configured. Missing executables, timeouts, failed commands and invalid banners
+warn on stderr and preserve unknown-version behavior. Resolved identities are
+logged at INFO; applied fix overrides at DEBUG (`--debug`), always on stderr so
+JSON stdout remains a report.
+
+Flavor definitions and authoritative fix references are bundled in
+[`gixy/data/nginx-flavors.json`](https://github.com/dvershinin/gixy/blob/master/gixy/data/nginx-flavors.json).
+They retain the advertised version and suppress only an exact check/CVE key at
+or after its recorded fix version. The initial registry records only the
+`quic_bpf_reuseport` fix in `nginx-mod` 1.30.6; it contains no vendor CVE
+exemptions. Older ambiguous builds retain the warning. There are no package
+manager queries or online feeds. Adding an evidenced flavor requires a data
+record with `flavor`, `banner_prefix` and `fixed_in`; each fix needs a `version`
+in X.Y.Z form and a nonempty `sources` list of authoritative HTTP(S) URLs.
+Malformed bundled definitions are errors rather than silent exemptions.
+
 ## Managing Enabled Checks
 
 - **Run only selected checks**: set `checks` to a comma-separated list of check names (you can also use the legacy `tests` key for backward compatibility).

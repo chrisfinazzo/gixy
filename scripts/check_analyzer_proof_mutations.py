@@ -22,6 +22,7 @@ TESTS = [
     "tests/plugins/test_map_capture_provenance.py",
     "tests/plugins/test_proxy_uri_transfer.py",
     "tests/plugins/test_quic_bpf_version.py",
+    "tests/core/test_nginx_flavors.py",
 ]
 
 # Name, source file, exact source fragment, mutant, selected assertion.
@@ -123,6 +124,20 @@ MUTATIONS = [
         "args = [to_native(v) for v in parsed_args]",
         "args = [to_native(v).strip() for v in parsed_args]",
         "test_unproved_or_tainted_path_keeps_warning",
+    ),
+    (
+        "flavor-fix-ignores-exact-key",
+        "gixy/core/config.py",
+        ".get(key)",
+        '.get("CVE-2026-93479")',
+        "test_data_only_flavor_and_exact_cve_scope",
+    ),
+    (
+        "flavor-fix-below-threshold",
+        "gixy/core/config.py",
+        'self.resolved_nginx_version < parse_oss(fix["version"])',
+        "self.resolved_nginx_version < (0, 0, 0)",
+        "test_flavor_specific_quic_fix",
     ),
     (
         "version-unknown-boundary",

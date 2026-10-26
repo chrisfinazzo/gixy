@@ -38,6 +38,10 @@ class quic_bpf_reuseport(Plugin):
         )
         if version is not None and version >= (1, 31, 7):
             return
+        if self.audit_context is not None and self.audit_context.nginx_has_fix(
+            self.name
+        ):
+            return
         # 1. Check for quic_bpf on in the main context
         quic_bpf = root.some("quic_bpf")
         if not quic_bpf or not quic_bpf.args or quic_bpf.args[0] != "on":
