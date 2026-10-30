@@ -44,6 +44,7 @@ Gixy 目前可以发现：
 *   [版本泄露](checks/version-disclosure.md)
 *   [proxy_pass 归一化/解码路径风险](checks/proxy-pass-normalized.md)
 *   [正则可能导致 ReDoS](checks/regex-redos.md)
+*   [不展开变量的指令中的变量](checks/non-expanding-variable.md)
 
 更多即将支持的检测项，见 Issues 中的 ["new plugin"](https://github.com/dvershinin/gixy/issues?q=is%3Aissue+is%3Aopen+label%3A%22new+plugin%22)。
 

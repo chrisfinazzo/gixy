@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`non_expanding_variable` check**: Flags variables in `geo` and
+  `split_clients` values (HIGH), which NGINX stores as literal text. When a
+  `geo` variable keys `limit_req_zone`/`limit_conn_zone`, the report explains
+  that every client shares one limit bucket and shows the geo-to-map fix.
+  Also flags variables in `error_log`, `*_temp_path` and `*_cache_path` paths
+  (LOW), which NGINX creates with `$` in the name.
 - Opt-in local NGINX version/flavor detection with `nginx-version = auto`,
   shared across version-aware checks and scanned files, plus explicit
   `nginx-flavor` overrides for offline targets. Detection is bounded,

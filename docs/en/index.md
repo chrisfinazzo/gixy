@@ -70,6 +70,7 @@ Gixy can find various NGINX configuration security issues, as well as NGINX conf
 *   [Missing default_server Flag](checks/default-server-flag.md)
 *   [Error Log Disabled](checks/error-log-off.md)
 *   [Hash Directive Without Default](checks/hash-without-default.md)
+*   [Variables in Non-Expanding Directives](checks/non-expanding-variable.md)
 
 ### Regex & Pattern Issues
 

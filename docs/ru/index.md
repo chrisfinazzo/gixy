@@ -44,6 +44,7 @@ Gixy — это инструмент для анализа конфигурац�
 *   [Раскрытие версии](checks/version-disclosure.md)
 *   [Нормализация/декодирование пути при proxy_pass](checks/proxy-pass-normalized.md)
 *   [Регэксп может вызвать ReDoS](checks/regex-redos.md)
+*   [Переменные в директивах без подстановки](checks/non-expanding-variable.md)
 
 ## Производительность
 

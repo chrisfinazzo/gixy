@@ -36,7 +36,7 @@ Gixy detects a wide range of security issues across these categories:
 | 📋 **Header Security** | [HSTS Header][hsts_header] &#183; [Header Redefinition][add_header_redefinition] &#183; [Multiline Headers][add_header_multiline] &#183; [Content-Type via add_header][add_header_content_type] |
 | 🚦 **Access Control** | [Allow Without Deny][allow_without_deny] &#183; [Return Bypasses ACL][return_bypasses_allow_deny] &#183; [Valid Referers][valid_referers] &#183; [Status Page Exposed][status_page_exposed] |
 | 🌐 **DNS & Resolver** | [External Resolver][resolver_external] &#183; [Missing Resolver][missing_resolver] |
-| ⚙️ **Config & Performance** | [ReDoS][regex_redos] &#183; [Regex Exact Match][regex_exact_match] &#183; [Unanchored Regex][unanchored_regex] &#183; [Invalid Regex][invalid_regex] &#183; [If Is Evil][if_is_evil] &#183; [Try Files Evil][try_files_is_evil_too] &#183; [Default Server][default_server_flag] &#183; [Hash Default][hash_without_default] &#183; [Error Log Off][error_log_off] &#183; [Worker Limits][worker_rlimit_nofile_vs_connections] &#183; [Low Keepalive][low_keepalive_requests] |
+| ⚙️ **Config & Performance** | [ReDoS][regex_redos] &#183; [Regex Exact Match][regex_exact_match] &#183; [Unanchored Regex][unanchored_regex] &#183; [Invalid Regex][invalid_regex] &#183; [If Is Evil][if_is_evil] &#183; [Try Files Evil][try_files_is_evil_too] &#183; [Default Server][default_server_flag] &#183; [Hash Default][hash_without_default] &#183; [Non-Expanding Variables][non_expanding_variable] &#183; [Error Log Off][error_log_off] &#183; [Worker Limits][worker_rlimit_nofile_vs_connections] &#183; [Low Keepalive][low_keepalive_requests] |
 
 [📖 **Full documentation →**](https://gixy.getpagespeed.com/plugins/) &#183; [🆕 Upcoming checks](https://github.com/dvershinin/gixy/issues?q=is%3Aissue+is%3Aopen+label%3A%22new+plugin%22)
 
@@ -74,6 +74,7 @@ Gixy detects a wide range of security issues across these categories:
 [try_files_is_evil_too]: https://gixy.getpagespeed.com/plugins/try_files_is_evil_too/
 [default_server_flag]: https://gixy.getpagespeed.com/plugins/default_server_flag/
 [hash_without_default]: https://gixy.getpagespeed.com/plugins/hash_without_default/
+[non_expanding_variable]: https://gixy.getpagespeed.com/checks/non-expanding-variable/
 [error_log_off]: https://gixy.getpagespeed.com/plugins/error_log_off/
 [worker_rlimit_nofile_vs_connections]: https://gixy.getpagespeed.com/plugins/worker_rlimit_nofile_vs_connections/
 [low_keepalive_requests]: https://gixy.getpagespeed.com/plugins/low_keepalive_requests/

@@ -78,6 +78,7 @@ nav:
   - checks/default-server-flag.md
   - checks/error-log-off.md
   - checks/hash-without-default.md
+  - checks/non-expanding-variable.md
   - checks/unanchored-regex.md
   - checks/regex-redos.md
   - checks/invalid-regex.md
