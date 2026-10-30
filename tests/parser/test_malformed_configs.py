@@ -259,9 +259,40 @@ class TestNginxRejectedDirectives:
         from gixy.core.manager import Manager
 
         with Manager(config=Config(allow_includes=False)) as yoda:
-            yoda.audit("<test>", io.BytesIO(self.NIXOS_CONFIG.encode()))
+            yoda.audit("<test>", io.BytesIO(self.NIXOS_CONFIG.encode()), is_stdin=True)
+            assert yoda.root.children
             assert sum(yoda.stats.values()) == 0
 
     def test_block_where_simple_directive_expected_is_skipped(self):
         tree = _parse("proxy_pass { }")
         assert tree.children == []
+
+
+class TestSyntaxErrorsAreReported:
+    """Crossplane records lexer errors in its payload instead of raising them;
+    gixy must not audit the resulting empty tree as a clean configuration."""
+
+    @pytest.mark.parametrize(
+        "config",
+        ["http {\n  server {\n", 'http { add_header X "unterminated; }'],
+    )
+    def test_unterminated_config_raises(self, config):
+        with pytest.raises(InvalidConfiguration, match="unexpected end of file"):
+            _parse(config)
+
+    def test_missing_file_raises(self, tmp_path):
+        with pytest.raises(InvalidConfiguration):
+            NginxParser(cwd=str(tmp_path)).parse_file(str(tmp_path / "missing.conf"))
+
+    def test_cli_exits_nonzero_for_unterminated_config(
+        self, tmp_path, capsys, monkeypatch
+    ):
+        from gixy.cli.main import main
+
+        conf = tmp_path / "broken.conf"
+        conf.write_text("http {\n  server {\n")
+        monkeypatch.setattr("sys.argv", ["gixy", str(conf)])
+        with pytest.raises(SystemExit) as exc:
+            main()
+        assert exc.value.code != 0
+        assert "unexpected end of file" in capsys.readouterr().err

@@ -85,9 +85,12 @@ class RawParser:
                 comments=True,  # Include comments in the output
             )
 
+            self._raise_on_errors(parsed)
             # Convert crossplane format to normalized nodes
             return self._normalize_crossplane(parsed)
 
+        except ParseException:
+            raise
         except NgxParserBaseException as e:
             # Convert crossplane error to ParseException format
             raise ParseException(str(e), loc=0, lineno=getattr(e, "line", 1), col=1)
@@ -106,12 +109,34 @@ class RawParser:
                 comments=True,  # Include comments in the output
             )
 
+            self._raise_on_errors(parsed)
             return self._normalize_crossplane(parsed)
+        except ParseException:
+            raise
         except NgxParserBaseException as e:
             # Convert crossplane error to ParseException format
             raise ParseException(str(e), loc=0, lineno=getattr(e, "line", 1), col=1)
         except Exception as e:
             raise ParseException(str(e), loc=0, lineno=1, col=1)
+
+    @staticmethod
+    def _raise_on_errors(crossplane_data):
+        """Raise the first parse error crossplane recorded in its payload.
+
+        Crossplane catches lexer errors (such as a missing closing brace) and
+        returns an empty or partial tree, which would otherwise be audited as
+        a clean configuration.
+
+        Args:
+            crossplane_data (dict): Payload returned by crossplane.
+
+        Raises:
+            ParseException: When the payload contains a parse error.
+        """
+        errors = crossplane_data.get("errors") if crossplane_data else None
+        if errors:
+            error = errors[0]
+            raise ParseException(error["error"], lineno=error.get("line") or 1)
 
     def _normalize_crossplane(self, crossplane_data):
         """Convert crossplane JSON output to a normalized list[dict] node structure.

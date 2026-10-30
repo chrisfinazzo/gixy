@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its QUIC reload backport from advertised version 1.30.6 without suppressing
   unrelated checks or CVEs or changing the advertised upstream version.
 
+### Fixed
+- A syntax error such as a missing closing brace, or a missing config file,
+  no longer yields "No issues found" with exit code 0. Crossplane recorded
+  these errors without raising them, so gixy audited an empty tree; it now
+  reports `Configuration error: unexpected end of file ...` and exits non-zero.
+
 ## [0.2.59] - 2026-10-25
 
 ### Added

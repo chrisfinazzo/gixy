@@ -48,7 +48,7 @@ class NginxParser:
         try:
             parsed = self.parser.parse_path(path)
         except ParseException as e:
-            error_msg = f"char {e.loc} (line:{e.lineno}, col:{e.col})"
+            error_msg = f"{e.msg} (line:{e.lineno}, col:{e.col})"
             LOG.error(f'Failed to parse config "{path}": {error_msg}')
             raise InvalidConfiguration(error_msg)
 
@@ -96,7 +96,7 @@ class NginxParser:
                 tmp_filename = tmp.name
             return self.parse_file(tmp_filename, root=root, display_path=path_info)
         except ParseException as e:
-            error_msg = f"char {e.loc} (line:{e.lineno}, col:{e.col})"
+            error_msg = f"{e.msg} (line:{e.lineno}, col:{e.col})"
             if path_info:
                 LOG.error(f'Failed to parse config "{path_info}": {error_msg}')
             else:
