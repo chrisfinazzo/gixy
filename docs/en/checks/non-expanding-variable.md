@@ -1,6 +1,6 @@
 ---
 title: "Variables in Non-Expanding Directives"
-description: "Detect NGINX geo, split_clients and path values where a $variable is stored as literal text."
+description: "Detect $variables in NGINX geo, split_clients, location, server_name, regex, auth_request and path values, where NGINX uses the text literally."
 ---
 
 # Variables in Non-Expanding Directives
@@ -54,6 +54,77 @@ limit_req_zone $limit_key zone=dynamic:10m rate=5r/s;
 
 Use the same approach for `split_clients`: return a literal marker, then map it
 to a variable value.
+
+## Matches that are never expanded
+
+`location`, `server_name`, `rewrite` and `if` patterns are compiled once, when
+NGINX loads the configuration, so variables in them are never substituted.
+Gixy reports these as MEDIUM:
+
+```nginx
+set $admin admin;
+
+# Prefix location: only matches the literal URI "/$admin/"
+location /$admin/ { deny all; }
+
+# Regex: "$" is the end-of-string anchor, so "^/$admin/" can never match
+# and the deny is silently skipped
+location ~ ^/$admin/ { deny all; }
+
+rewrite ^/$old/(.*)$ /new/$1 permanent;   # never fires
+if ($uri ~ $blocked) { return 403; }      # regex is the text "$blocked"
+server_name $tenant.example.com;          # matches Host "$tenant.example.com"
+```
+
+Write the value out, or move the comparison into a `map`:
+
+```nginx
+location ~ ^/admin/ { deny all; }
+
+map $uri $blocked_uri {
+    default         0;
+    ~^/private      1;
+}
+```
+
+A dollar sign escaped as `\$` or inside a character class such as `[$]` is
+a literal character and is not reported. `server_name $hostname` is a
+documented special name and is accepted.
+
+## auth_request URI
+
+`auth_request` sends its subrequest to the URI exactly as written. With
+`auth_request /auth/$host;` the subrequest goes to `/auth/$host`. If any
+location answers that URI with a 2xx status, every request is authorized, so
+Gixy reports this as HIGH. Use a fixed URI and pass request data to the auth
+location in headers:
+
+```nginx
+location / {
+    auth_request /auth;
+}
+
+location = /auth {
+    internal;
+    proxy_set_header X-Original-Host $host;
+    proxy_pass http://auth-backend;
+}
+```
+
+## Unrendered environment placeholders
+
+NGINX does not read environment variables in its configuration. A
+`${UPPER_CASE}` name that no `set`, `map` or other directive defines is almost
+always a template placeholder that was never rendered:
+
+```nginx
+# Copied from a Docker template without running envsubst
+proxy_pass http://${BACKEND_HOST}:8080;
+```
+
+Gixy reports these as MEDIUM. Render the template with `envsubst` before NGINX
+starts. The official Docker image does this for
+`/etc/nginx/templates/*.template`.
 
 ## Paths that do not support variables
 

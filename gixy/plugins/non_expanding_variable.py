@@ -3,10 +3,24 @@
 import re
 
 import gixy
-from gixy.directives.block import GeoBlock, IncludeBlock
+from gixy.core.context import get_context
+from gixy.directives.block import GeoBlock, IfBlock, IncludeBlock, LocationBlock
 from gixy.plugins.plugin import Plugin
 
 VARIABLE_RE = re.compile(r"\$(?:\{[A-Za-z_]\w*\}|[A-Za-z_]\w*)")
+
+# envsubst/Docker template placeholder: ${BACKEND_HOST}
+ENV_PLACEHOLDER_RE = re.compile(r"\$\{([A-Z][A-Z0-9_]*)\}\Z")
+
+REGEX_IF_OPERATORS = frozenset(["~", "~*", "!~", "!~*"])
+
+# Directives whose arguments carry embedded code rather than NGINX values
+CODE_DIRECTIVE_SUFFIXES = ("_by_lua", "_by_lua_block", "_by_lua_file")
+
+# naxsi rules use "$NAME" for their own score names, e.g. CheckRule "$SQL >= 8"
+NAXSI_DIRECTIVES = frozenset(
+    ["BasicRule", "CheckRule", "MainRule", "basic_rule", "check_rule", "main_rule"]
+)
 
 # geo parameters whose argument is not a resulting value
 GEO_KEYWORDS = frozenset(["delete", "proxy", "proxy_recursive", "ranges"])
@@ -37,24 +51,172 @@ class non_expanding_variable(Plugin):
     summary = "Variable used where NGINX does not expand variables"
     severity = gixy.severity.HIGH
     description = (
-        "Unlike map, the geo and split_clients modules and file path directives "
-        "such as error_log store their values as plain text. A value such as "
-        '"$binary_remote_addr" becomes that literal string for every request.'
+        "Unlike map, many NGINX positions take their text literally: geo and "
+        "split_clients values, location and server_name matches, rewrite and if "
+        "regexes, the auth_request URI and paths such as error_log. A value such "
+        'as "$binary_remote_addr" becomes that literal string, and "$name" in a '
+        "regex is an end-of-string anchor that can never match."
     )
-    directives = ["geo", "split_clients"] + sorted(LITERAL_PATH_DIRECTIVES)
+    # Every directive: environment placeholders can appear anywhere
+    directives = []
 
     def audit(self, directive):
-        """Dispatch a geo, split_clients or literal-path directive to its check.
+        """Dispatch a directive to the checks for its literal positions.
 
         Args:
-            directive: Parsed directive or block named in ``directives``.
+            directive: Any parsed directive or block.
         """
+        if self._audit_env_placeholders(directive):
+            return
         if directive.name in LITERAL_PATH_DIRECTIVES:
             self._audit_path(directive)
         elif isinstance(directive, GeoBlock):
             self._audit_geo(directive)
         elif directive.name == "split_clients":
             self._audit_split_clients(directive)
+        elif isinstance(directive, LocationBlock):
+            self._audit_location(directive)
+        elif directive.name == "server_name":
+            self._audit_server_name(directive)
+        elif directive.name == "rewrite":
+            self._audit_regex(directive, directive.args[0] if directive.args else "")
+        elif isinstance(directive, IfBlock):
+            if directive.operand in REGEX_IF_OPERATORS:
+                self._audit_regex(directive, directive.value)
+        elif directive.name == "auth_request":
+            self._audit_auth_request(directive)
+
+    def _audit_env_placeholders(self, directive):
+        """Report $UPPER_CASE names that no NGINX variable defines.
+
+        NGINX never reads environment variables, so such a name is almost
+        always a template placeholder (envsubst, Docker templates) that was
+        never rendered.
+
+        Args:
+            directive: Any parsed directive or block.
+
+        Returns:
+            bool: True when an issue was reported for the directive.
+        """
+        if directive.name in NAXSI_DIRECTIVES or (
+            directive.name and directive.name.endswith(CODE_DIRECTIVE_SUFFIXES)
+        ):
+            return False
+        names = []
+        for arg in directive.args:
+            for token in _variable_tokens(arg):
+                name = _strip(token)
+                if _is_env_placeholder(token) and name not in names:
+                    names.append(name)
+        if not names:
+            return False
+
+        listed = ", ".join("${" + name + "}" for name in names)
+        self.add_issue(
+            severity=gixy.severity.MEDIUM,
+            directive=[directive],
+            reason=(
+                f"{listed} is not an NGINX variable; it looks like an "
+                "environment-variable placeholder left unrendered. NGINX does not "
+                "read environment variables in its configuration: render the "
+                "template with envsubst (the official Docker image does this for "
+                "/etc/nginx/templates/*.template) before NGINX starts."
+            ),
+        )
+        return True
+
+    def _audit_location(self, block):
+        """Report variables in a location match, which is never expanded.
+
+        Args:
+            block: Parsed location block.
+        """
+        if block.is_regex:
+            self._audit_regex(block, block.path)
+        elif not block.path.startswith("@") and _literal_variables(block.path):
+            self.add_issue(
+                severity=gixy.severity.MEDIUM,
+                directive=[block],
+                reason=(
+                    f'location "{block.path}" is matched literally: NGINX does not '
+                    "expand variables in location prefixes, so it only matches "
+                    'URIs containing the text "$". Use a regex location or a map.'
+                ),
+            )
+
+    def _audit_server_name(self, directive):
+        """Report variables in server_name entries.
+
+        Args:
+            directive: Parsed server_name directive.
+        """
+        for name in directive.args:
+            if name.lower() == "$hostname":
+                # Documented special name: the machine's hostname
+                continue
+            if name.startswith("~"):
+                self._audit_regex(directive, name[1:])
+                continue
+            if _literal_variables(name):
+                self.add_issue(
+                    severity=gixy.severity.MEDIUM,
+                    directive=[directive],
+                    reason=(
+                        f'server_name "{name}" is matched literally: NGINX does not '
+                        "expand variables in server names, so this server only "
+                        'answers a Host header containing the text "$". Generate '
+                        "the names with a template or use a regex/wildcard name."
+                    ),
+                )
+                return
+
+    def _audit_regex(self, directive, pattern):
+        """Report an unescaped "$name" in a regex, which can never match.
+
+        Args:
+            directive: Directive that owns the regex.
+            pattern (str): Regular expression text.
+        """
+        anchors = [
+            _strip(token)
+            for token in _regex_dollar_tokens(pattern)
+            if not _is_env_placeholder(token)
+        ]
+        if not anchors:
+            return
+
+        self.add_issue(
+            severity=gixy.severity.MEDIUM,
+            directive=[directive],
+            reason=(
+                f'The regex "{pattern}" contains ${anchors[0]}, but NGINX does not '
+                'expand variables in regexes: "$" is the end-of-string anchor, so '
+                "this part of the pattern can never match. Escape it as \\$ for a "
+                "literal dollar sign, or compare against a variable with map."
+            ),
+        )
+
+    def _audit_auth_request(self, directive):
+        """Report variables in the auth_request subrequest URI.
+
+        Args:
+            directive: Parsed auth_request directive.
+        """
+        if not directive.args or not _literal_variables(directive.args[0]):
+            return
+
+        self.add_issue(
+            severity=gixy.severity.HIGH,
+            directive=[directive],
+            reason=(
+                f"auth_request sends its subrequest to the literal URI "
+                f'"{directive.args[0]}": the URI is not expanded. If any location '
+                "answers that URI with a 2xx status, every request is authorized. "
+                "Use a fixed URI and pass request data to the auth location with "
+                "proxy_set_header or variables inside that location."
+            ),
+        )
 
     def _audit_geo(self, block):
         """Report geo values containing variable references.
@@ -67,7 +229,7 @@ class non_expanding_variable(Plugin):
             for entry in block.gather_geo_directives(block.children)
             if entry.src_val not in GEO_KEYWORDS
             and entry.dest_val
-            and VARIABLE_RE.search(entry.dest_val)
+            and _literal_variables(entry.dest_val)
         ]
         if not entries:
             return
@@ -106,7 +268,7 @@ class non_expanding_variable(Plugin):
         entries = [
             entry
             for entry in self._gather_entries(block.children)
-            if any(VARIABLE_RE.search(arg) for arg in entry.args)
+            if any(_literal_variables(arg) for arg in entry.args)
         ]
         if not entries:
             return
@@ -128,7 +290,7 @@ class non_expanding_variable(Plugin):
         Args:
             directive: Parsed error_log, *_temp_path or *_cache_path directive.
         """
-        if not directive.args or not VARIABLE_RE.search(directive.args[0]):
+        if not directive.args or not _literal_variables(directive.args[0]):
             return
 
         self.add_issue(
@@ -210,6 +372,94 @@ def _references(value, names):
     Returns:
         bool: True when ``value`` contains ``$name`` or ``${name}``.
     """
-    return any(
-        match.group(0).strip("${}") in names for match in VARIABLE_RE.finditer(value)
-    )
+    return any(_strip(token) in names for token in _variable_tokens(value))
+
+
+def _variable_tokens(value):
+    """List the variable references in a value.
+
+    Args:
+        value (str): Directive argument.
+
+    Returns:
+        list: References as written, e.g. ``$host`` or ``${host}``.
+    """
+    return VARIABLE_RE.findall(value)
+
+
+def _strip(token):
+    """Return the variable name of a reference.
+
+    Args:
+        token (str): Reference such as ``$host`` or ``${host}``.
+
+    Returns:
+        str: Name without the leading "$" or braces.
+    """
+    return token.strip("${}")
+
+
+def _is_env_placeholder(token):
+    """Return whether a reference is an unrendered ${UPPER_CASE} placeholder.
+
+    NGINX variable names are case-insensitive, so ${HOST} is $host; only
+    names that resolve to nothing are treated as template placeholders.
+
+    Args:
+        token (str): Reference such as ``${BACKEND_HOST}``.
+
+    Returns:
+        bool: True for an unresolvable braced all-caps name.
+    """
+    match = ENV_PLACEHOLDER_RE.match(token)
+    return bool(match) and not get_context().get_var(match.group(1).lower())
+
+
+def _literal_variables(value):
+    """List variable names in a value, excluding template placeholders.
+
+    Args:
+        value (str): Directive argument stored literally by NGINX.
+
+    Returns:
+        list: Names reported by the literal-position checks.
+    """
+    return [
+        _strip(token)
+        for token in _variable_tokens(value)
+        if not _is_env_placeholder(token)
+    ]
+
+
+def _regex_dollar_tokens(pattern):
+    """List variable references after an unescaped "$" outside character classes.
+
+    Args:
+        pattern (str): Regular expression text.
+
+    Returns:
+        list: References that the regex treats as text after an end anchor.
+    """
+    tokens = []
+    in_class = False
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "\\":
+            index += 2
+            continue
+        if in_class:
+            in_class = char != "]"
+        elif char == "[":
+            in_class = True
+            # A "]" right after "[" or "[^" is a literal member
+            if pattern[index + 1 : index + 2] == "^":
+                index += 1
+            if pattern[index + 1 : index + 2] == "]":
+                index += 1
+        elif char == "$":
+            match = VARIABLE_RE.match(pattern, index)
+            if match:
+                tokens.append(match.group(0))
+        index += 1
+    return tokens

@@ -1,6 +1,6 @@
 ---
 title: "不展开变量的指令中的变量"
-description: "检测 NGINX geo、split_clients 和路径值中被当作纯文本保存的 $变量。"
+description: "检测 NGINX geo、split_clients、location、server_name、正则、auth_request 和路径值中被按字面使用的 $变量。"
 ---
 
 # 不展开变量的指令中的变量
@@ -51,6 +51,72 @@ limit_req_zone $limit_key zone=dynamic:10m rate=5r/s;
 ```
 
 `split_clients` 也采用同样的方法：返回字面标记，再用 `map` 映射到变量值。
+
+## 永远不会展开的匹配模式
+
+`location`、`server_name`、`rewrite` 和 `if` 的模式在 NGINX 加载配置时只编译一次，
+其中的变量不会被替换。Gixy 将其报告为 MEDIUM：
+
+```nginx
+set $admin admin;
+
+# 前缀 location：只匹配字面 URI "/$admin/"
+location /$admin/ { deny all; }
+
+# 正则：“$” 是字符串结尾锚点，因此 "^/$admin/" 永远不会匹配，
+# deny 会被悄悄跳过
+location ~ ^/$admin/ { deny all; }
+
+rewrite ^/$old/(.*)$ /new/$1 permanent;   # 永远不会触发
+if ($uri ~ $blocked) { return 403; }      # 正则就是文本 "$blocked"
+server_name $tenant.example.com;          # 只匹配 Host "$tenant.example.com"
+```
+
+请直接写出值，或把比较移到 `map` 中：
+
+```nginx
+location ~ ^/admin/ { deny all; }
+
+map $uri $blocked_uri {
+    default         0;
+    ~^/private      1;
+}
+```
+
+转义为 `\$` 或位于 `[$]` 这样的字符类中的美元符号是普通字符，不会被报告。
+`server_name $hostname` 是文档中规定的特殊名称，可以使用。
+
+## auth_request 的 URI
+
+`auth_request` 会把子请求按原样发送到所写的 URI。使用
+`auth_request /auth/$host;` 时，子请求会发往 `/auth/$host`。如果任何 location
+对该 URI 返回 2xx，所有请求都会被放行，因此 Gixy 将其报告为 HIGH。
+请使用固定 URI，并通过请求头把数据传给认证 location：
+
+```nginx
+location / {
+    auth_request /auth;
+}
+
+location = /auth {
+    internal;
+    proxy_set_header X-Original-Host $host;
+    proxy_pass http://auth-backend;
+}
+```
+
+## 未渲染的环境变量占位符
+
+NGINX 不会在配置中读取环境变量。没有被 `set`、`map` 或其他指令定义的
+`${UPPER_CASE}` 名称几乎总是未被渲染的模板占位符：
+
+```nginx
+# 从 Docker 模板复制而来，但没有运行 envsubst
+proxy_pass http://${BACKEND_HOST}:8080;
+```
+
+Gixy 将其报告为 MEDIUM。请在 NGINX 启动前用 `envsubst` 渲染模板。
+官方 Docker 镜像会对 `/etc/nginx/templates/*.template` 执行这一步。
 
 ## 不支持变量的路径
 

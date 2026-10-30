@@ -140,3 +140,72 @@ def test_variable_in_later_cache_path_argument_is_ignored():
     )
 
     assert issues == []
+
+
+def test_env_placeholder_in_geo_reported_once_as_template():
+    issues = _audit_issues(
+        """
+        http {
+            geo $limit_key {
+                default ${CLIENT_KEY};
+            }
+        }
+        """
+    )
+
+    assert len(issues) == 1
+    assert issues[0].severity == "MEDIUM"
+    assert "envsubst" in issues[0].reason
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        "http { server { set $BACKEND 127.0.0.1; location / { proxy_pass http://$BACKEND; } } }",
+        "http { server { location / { add_header X-Host $HOST; return 200; } } }",
+        "http { server { location / { content_by_lua_block { ngx.say('${X}') } } } }",
+        'http { server { location / { CheckRule "$SQL >= 8" BLOCK; } } }',
+        "http { server { location / { proxy_pass http://$UPSTREAM_FROM_INCLUDE; } } }",
+        "http { server { server_name $hostname; } }",
+    ],
+)
+def test_declared_or_builtin_upper_case_names_are_not_placeholders(config):
+    assert _audit_issues(config) == []
+
+
+def test_auth_request_with_variable_is_high():
+    issues = _audit_issues(
+        "http { server { location / { auth_request /auth/$host; } } }"
+    )
+
+    assert len(issues) == 1
+    assert issues[0].severity == "HIGH"
+
+
+@pytest.mark.parametrize(
+    "pattern,names",
+    [
+        (r"^/$p/x", ["$p"]),
+        (r"^/${p}x", ["${p}"]),
+        (r"\.php$", []),
+        (r"^/(a|b)$", []),
+        (r"^/a[$]b", []),
+        (r"^/a[]$b]c", []),
+        (r"^/a[^]$b]c", []),
+        (r"^/price\$usd", []),
+        (r"^/a\\$p", ["$p"]),
+    ],
+)
+def test_regex_dollar_tokens(pattern, names):
+    from gixy.plugins.non_expanding_variable import _regex_dollar_tokens
+
+    assert _regex_dollar_tokens(pattern) == names
+
+
+def test_server_name_checks_entries_after_regex():
+    issues = _audit_issues(
+        r"http { server { server_name ~^a\.example$ $tenant.example; } }"
+    )
+
+    assert len(issues) == 1
+    assert "$tenant.example" in issues[0].reason

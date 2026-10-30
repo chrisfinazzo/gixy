@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that every client shares one limit bucket and shows the geo-to-map fix.
   Also flags variables in `error_log`, `*_temp_path` and `*_cache_path` paths
   (LOW), which NGINX creates with `$` in the name.
+  It also reports variables in `location` and `server_name` matches and in
+  `location`, `rewrite`, `if` and `server_name` regexes, where `$name` is a
+  dead end-of-string anchor (MEDIUM). A variable in the `auth_request` URI is
+  reported as HIGH, because the subrequest goes to the literal URI and a 2xx
+  answer authorizes every request. Unrendered `${UPPER_CASE}` template
+  placeholders are reported as MEDIUM.
 - Opt-in local NGINX version/flavor detection with `nginx-version = auto`,
   shared across version-aware checks and scanned files, plus explicit
   `nginx-flavor` overrides for offline targets. Detection is bounded,
